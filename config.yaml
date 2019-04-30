@@ -1,0 +1,13 @@
+options:
+    advertised-hostname:
+        description: Advertised hostname
+        type: string
+        default: "prometheus"
+    advertised-port:
+        description: UI Port
+        type: int
+        default: 9090
+    osm-server:
+        description: NBI advertised name
+        type: string
+        default: nbi-k8s

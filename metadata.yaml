@@ -1,0 +1,25 @@
+name: "prometheus-k8s"
+summary: "Prometheus Charm"
+maintainers:
+    - "SolutionsQA <solutionsqa@lists.canonical.com>"
+description: |
+  A CAAS charm to deploy Prometheus.
+tags:
+    - "application"
+series:
+    - "kubernetes"
+requires:
+    mon:
+        interface: mon
+provides:
+    prometheus:
+        interface: prometheus
+resources:
+    prometheus-image:
+        type: oci-image
+        description: "Image used for UI pod."
+        auto-fetch: true
+storage:
+  database:
+    type: filesystem
+    location: /prometheus

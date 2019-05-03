@@ -63,12 +63,9 @@ def configure():
         if mon_unit['host'] and mon_unit['port']:
             spec = make_pod_spec(mon_unit['host'], mon_unit['port'])
             log('set pod spec:\n{}'.format(spec))
-            success = pod_spec_set(spec)
-            if success:
-                set_flag('prometheus-k8s.configured')
-                layer.status.active('configured')
-            else:
-                layer.status.blocked('k8s spec failed to deploy')
+            pod_spec_set(spec)
+            set_flag('prometheus-k8s.configured')
+            layer.status.active('configured')
 
     except Exception as e:
         layer.status.blocked('k8s spec failed to deploy: {}'.format(e))

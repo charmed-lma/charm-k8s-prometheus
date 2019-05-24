@@ -19,6 +19,7 @@ resources:
         type: oci-image
         description: "Image used for UI pod."
         auto-fetch: true
+        upstream-source: prom/prometheus:latest
 storage:
   database:
     type: filesystem

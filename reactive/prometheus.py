@@ -1,7 +1,7 @@
 from charms.layer.caas_base import pod_spec_set
 from charms.reactive import endpoint_from_flag
-from charms.reactive import when, when_not, hook
-from charms.reactive.flags import set_flag, clear_flag
+from charms.reactive import when, when_not
+from charms.reactive.flags import set_flag, register_trigger
 from charmhelpers.core.hookenv import (
     log,
     metadata,
@@ -11,14 +11,8 @@ from charms import layer
 from charms.osm.k8s import get_service_ip
 
 
-@when_not('layer.docker-resource.prometheus-image.fetched')
-def fetch_image():
-    """Fetch the prometheus-image
-
-    Conditions:
-        - Not prometheus-image.fetched
-    """
-    layer.docker_resource.fetch('prometheus-image')
+register_trigger(when='layer.docker-resource.prometheus-image.changed',
+                 clear_flag='prometheus-k8s.configured')
 
 
 @when('layer.docker-resource.prometheus-image.failed')
@@ -29,11 +23,6 @@ def waiting_for_prometheus_image():
         - prometheus-image.failed
     """
     layer.status.waiting('Unable to fetch prometheus-image')
-
-
-@hook('upgrade-charm')
-def upgrade():
-    clear_flag('prometheus-k8s.configured')
 
 
 @when('layer.docker-resource.prometheus-image.available')

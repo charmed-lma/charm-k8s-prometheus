@@ -1,4 +1,11 @@
 containers:
+  - name: "init-chown-data"
+    imageDetails:
+      imagePath: %(a_docker_image_path)s
+      username: %(a_docker_image_username)s
+      password: %(a_docker_image_password)s
+    imagePullPolicy: "IfNotPresent"
+    command: ["/bin/sh", "-c", "chown -R 65534:65534 /prometheus && while true; do sleep 86400; done"]
   - name: %(name)s
     imageDetails:
       imagePath: %(docker_image_path)s

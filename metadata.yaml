@@ -20,6 +20,11 @@ resources:
         description: "Image used for UI pod."
         auto-fetch: true
         upstream-source: prom/prometheus:latest
+    alpine-image:
+        type: oci-image
+        description: "Alpine"
+        auto-fetch: true
+        upstream-source: alpine:latest
 storage:
   database:
     type: filesystem

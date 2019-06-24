@@ -25,7 +25,18 @@ def waiting_for_prometheus_image():
     layer.status.waiting('Unable to fetch prometheus-image')
 
 
+@when('layer.docker-resource.alpine-image.failed')
+def waiting_for_alpine_image():
+    """Set status blocked
+
+    Conditions:
+        - alpine-image.failed
+    """
+    layer.status.waiting('Unable to fetch alpine-image')
+
+
 @when('layer.docker-resource.prometheus-image.available')
+@when('layer.docker-resource.alpine-image.available')
 @when_not('mon.ready')
 def waiting_for_mon_interface():
     """Set status blocked
@@ -38,6 +49,7 @@ def waiting_for_mon_interface():
 
 
 @when('layer.docker-resource.prometheus-image.available')
+@when('layer.docker-resource.alpine-image.available')
 @when('mon.ready')
 @when_not('prometheus-k8s.configured')
 def configure():
@@ -104,6 +116,7 @@ def make_pod_spec(mon_host, mon_port):
         pod_spec: Pod specification for Kubernetes
     """
     image_info = layer.docker_resource.get_info('prometheus-image')
+    a_image_info = layer.docker_resource.get_info('alpine-image')
 
     with open('reactive/spec_template.yaml') as spec_file:
         pod_spec_template = spec_file.read()
@@ -116,6 +129,9 @@ def make_pod_spec(mon_host, mon_port):
         'docker_image_path': image_info.registry_path,
         'docker_image_username': image_info.username,
         'docker_image_password': image_info.password,
+        'a_docker_image_path': a_image_info.registry_path,
+        'a_docker_image_username': a_image_info.username,
+        'a_docker_image_password': a_image_info.password,
         'mon_uri': "{}:{}".format(mon_host, mon_port)
     }
     data.update(cfg)

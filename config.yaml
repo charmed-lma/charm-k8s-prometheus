@@ -11,3 +11,7 @@ options:
         description: NBI advertised name
         type: string
         default: nbi-k8s
+    web-subpath:
+        description: Subpath for accessing Prometheus
+        type: string
+        default: /

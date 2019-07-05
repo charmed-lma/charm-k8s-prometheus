@@ -18,6 +18,10 @@ containers:
       ALLOW_ANONYMOUS_LOGIN: 'yes'
       OSM_SERVER: %(osm-server)s
       OSM_PROM_PORTS: %(advertised-port)s
+    command:
+      - "sh"
+      - "-c"
+      - "/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles --web.route-prefix=%(web-subpath)s --web.external-url=http://localhost:%(advertised-port)s%(web-subpath)s"
     files:
     - name: config
       mountPath: /etc/prometheus

@@ -71,7 +71,7 @@ def configure():
             log('set pod spec:\n{}'.format(spec))
             pod_spec_set(spec)
             set_flag('prometheus-k8s.configured')
-            layer.status.active('configured')
+            layer.status.active('ready')
 
     except Exception as e:
         layer.status.blocked('k8s spec failed to deploy: {}'.format(e))
@@ -84,7 +84,7 @@ def set_prometheus_active():
     Conditions:
         - prometheus-k8s.configured
     """
-    layer.status.active('configured')
+    layer.status.active('ready')
 
 
 @when('prometheus-k8s.configured', 'prometheus.joined')

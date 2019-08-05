@@ -1,7 +1,7 @@
 from charms.layer.caas_base import pod_spec_set
 from charms.reactive import endpoint_from_flag
 from charms.reactive import when, when_not
-from charms.reactive.flags import set_flag, register_trigger
+from charms.reactive.flags import set_flag, register_trigger, clear_flag
 from charmhelpers.core.hookenv import (
     log,
     metadata,
@@ -78,6 +78,7 @@ def configure():
 
 
 @when('prometheus-k8s.configured')
+@when_not('prometheus-k8s.active')
 def set_prometheus_active():
     """Set prometheus status active
 
@@ -85,9 +86,10 @@ def set_prometheus_active():
         - prometheus-k8s.configured
     """
     layer.status.active('ready')
+    set_flag('prometheus-k8s.active')
 
 
-@when('prometheus-k8s.configured', 'prometheus.joined')
+@when('prometheus-k8s.active', 'prometheus.joined')
 def send_config():
     """Send prometheus configuration to prometheus
     Sent information:
@@ -105,6 +107,8 @@ def send_config():
         if prometheus:
             prometheus.send_connection(get_service_ip('prometheus'),
                                        cfg.get('advertised-port'))
+            clear_flag('prometheus.joined')
+            set_prometheus_active()
     except Exception as e:
         log("Exception sending config: {}".format(e))
 

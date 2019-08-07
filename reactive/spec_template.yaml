@@ -16,8 +16,6 @@ containers:
       protocol: TCP
     config:
       ALLOW_ANONYMOUS_LOGIN: 'yes'
-      OSM_SERVER: %(osm-server)s
-      OSM_PROM_PORTS: %(advertised-port)s
     command:
       - "sh"
       - "-c"
@@ -38,4 +36,4 @@ containers:
           scrape_configs:
             - job_name: 'prometheus'
               static_configs:
-              - targets: ['%(mon_uri)s']
+              - targets: []

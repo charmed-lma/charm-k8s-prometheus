@@ -37,20 +37,6 @@ def waiting_for_alpine_image():
 
 @when('layer.docker-resource.prometheus-image.available')
 @when('layer.docker-resource.alpine-image.available')
-@when_not('mon.ready')
-def waiting_for_mon_interface():
-    """Set status blocked
-
-    Conditions:
-        - prometheus-image.available
-        - mon.ready
-    """
-    layer.status.waiting('Waiting for mon interface')
-
-
-@when('layer.docker-resource.prometheus-image.available')
-@when('layer.docker-resource.alpine-image.available')
-@when('mon.ready')
 @when_not('prometheus-k8s.configured')
 def configure():
     """Configure prometheus-k8s pod
@@ -63,15 +49,11 @@ def configure():
     """
     layer.status.maintenance('Configuring prometheus container')
     try:
-        mon = endpoint_from_flag('mon.ready')
-        mons = mon.mons()
-        mon_unit = mons[0]
-        if mon_unit['host'] and mon_unit['port']:
-            spec = make_pod_spec(mon_unit['host'], mon_unit['port'])
-            log('set pod spec:\n{}'.format(spec))
-            pod_spec_set(spec)
-            set_flag('prometheus-k8s.configured')
-            layer.status.active('ready')
+        spec = make_pod_spec()
+        log('set pod spec:\n{}'.format(spec))
+        pod_spec_set(spec)
+        set_flag('prometheus-k8s.configured')
+        layer.status.active('ready')
 
     except Exception as e:
         layer.status.blocked('k8s spec failed to deploy: {}'.format(e))
@@ -113,7 +95,7 @@ def send_config():
         log("Exception sending config: {}".format(e))
 
 
-def make_pod_spec(mon_host, mon_port):
+def make_pod_spec():
     """Make pod specification for Kubernetes
 
     Returns:
@@ -136,7 +118,6 @@ def make_pod_spec(mon_host, mon_port):
         'a_docker_image_path': a_image_info.registry_path,
         'a_docker_image_username': a_image_info.username,
         'a_docker_image_password': a_image_info.password,
-        'mon_uri': "{}:{}".format(mon_host, mon_port)
     }
     data.update(cfg)
     return pod_spec_template % data

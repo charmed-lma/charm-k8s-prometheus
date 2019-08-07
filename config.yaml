@@ -4,13 +4,9 @@ options:
         type: string
         default: "prometheus"
     advertised-port:
-        description: UI Port
+        description: Prometheus Port
         type: int
         default: 9090
-    osm-server:
-        description: NBI advertised name
-        type: string
-        default: nbi-k8s
     web-subpath:
         description: Subpath for accessing Prometheus
         type: string

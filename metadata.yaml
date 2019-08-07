@@ -8,9 +8,6 @@ tags:
     - "application"
 series:
     - "kubernetes"
-requires:
-    mon:
-        interface: mon
 provides:
     prometheus:
         interface: prometheus

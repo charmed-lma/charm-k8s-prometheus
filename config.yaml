@@ -11,3 +11,7 @@ options:
         description: Subpath for accessing Prometheus
         type: string
         default: /
+    default-target:
+        description: Default target to be added in Prometheus
+        type: string
+        default: ""

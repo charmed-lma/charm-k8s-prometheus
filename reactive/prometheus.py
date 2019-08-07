@@ -8,7 +8,7 @@ from charmhelpers.core.hookenv import (
     config,
 )
 from charms import layer
-from charms.osm.k8s import get_service_ip
+from charmhelpers.core.hookenv import is_leader
 
 
 register_trigger(when='layer.docker-resource.prometheus-image.changed',
@@ -43,8 +43,6 @@ def configure():
 
     Conditions:
         - prometheus-image.available
-        - prometheus.available
-        - Not prometheus-k8s.config-received
         - Not prometheus-k8s.configured
     """
     layer.status.maintenance('Configuring prometheus container')
@@ -71,7 +69,7 @@ def set_prometheus_active():
     set_flag('prometheus-k8s.active')
 
 
-@when('prometheus-k8s.active', 'prometheus.joined')
+@when('prometheus-k8s.active', 'prometheus.available')
 def send_config():
     """Send prometheus configuration to prometheus
     Sent information:
@@ -79,17 +77,16 @@ def send_config():
         - Prometheus Port
 
     Conditions:
-        - prometheus-k8s.configured
-        - prometheus joined
+        - prometheus-k8s.active
+        - prometheus.available
     """
     layer.status.maintenance('Sending prometheus configuration')
     cfg = config()
     try:
-        prometheus = endpoint_from_flag('prometheus.joined')
+        prometheus = endpoint_from_flag('prometheus.available')
         if prometheus:
-            prometheus.send_connection(get_service_ip('prometheus'),
-                                       cfg.get('advertised-port'))
-            clear_flag('prometheus.joined')
+            prometheus.configure(port=cfg.get('advertised-port'))
+            clear_flag('prometheus.available')
             set_prometheus_active()
     except Exception as e:
         log("Exception sending config: {}".format(e))

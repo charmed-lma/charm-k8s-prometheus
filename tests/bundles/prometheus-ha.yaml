@@ -3,6 +3,8 @@ applications:
   prometheus-k8s:
     charm: '../build/prometheus-k8s'
     scale: 2
+    options:
+      default-target: "mon-k8s:8000"
     resources:
       prometheus-image: '../resources/prometheus-image.yaml'
       alpine-image: '../resources/alpine-image.yaml'

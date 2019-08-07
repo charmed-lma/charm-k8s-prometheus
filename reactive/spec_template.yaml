@@ -36,4 +36,4 @@ containers:
           scrape_configs:
             - job_name: 'prometheus'
               static_configs:
-              - targets: []
+              - targets: ['%(default-target)s']

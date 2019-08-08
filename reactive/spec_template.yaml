@@ -16,6 +16,18 @@ containers:
       protocol: TCP
     config:
       ALLOW_ANONYMOUS_LOGIN: 'yes'
+    readinessProbe:
+      httpGet:
+        path: /-/ready
+        port: %(advertised-port)s
+      initialDelaySeconds: 30
+      timeoutSeconds: 30
+    livenessProbe:
+      httpGet:
+        path: /-/healthy
+        port: %(advertised-port)s
+      initialDelaySeconds: 30
+      timeoutSeconds: 30
     command:
       - "sh"
       - "-c"

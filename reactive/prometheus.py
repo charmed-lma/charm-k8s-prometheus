@@ -58,7 +58,6 @@ def configure():
 
 
 @when('prometheus-k8s.configured')
-@when_not('prometheus-k8s.active')
 def set_prometheus_active():
     """Set prometheus status active
 
@@ -66,10 +65,9 @@ def set_prometheus_active():
         - prometheus-k8s.configured
     """
     layer.status.active('ready')
-    set_flag('prometheus-k8s.active')
 
 
-@when('prometheus-k8s.active', 'prometheus.available')
+@when('prometheus-k8s.configured', 'prometheus.available')
 def send_config():
     """Send prometheus configuration to prometheus
     Sent information:
@@ -87,7 +85,6 @@ def send_config():
         if prometheus:
             prometheus.configure(port=cfg.get('advertised-port'))
             clear_flag('prometheus.available')
-            set_prometheus_active()
     except Exception as e:
         log("Exception sending config: {}".format(e))
 

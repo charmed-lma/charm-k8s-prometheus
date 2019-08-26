@@ -6,8 +6,8 @@ applications:
     options:
       default-target: "mon-k8s:8000"
     resources:
-      prometheus-image: '../resources/prometheus-image.yaml'
-      alpine-image: '../resources/alpine-image.yaml'
+      prometheus-image: 'prom/prometheus:latest'
+      alpine-image: 'alpine:latest'
     series: kubernetes
     storage:
       database: 50M,osm-pv

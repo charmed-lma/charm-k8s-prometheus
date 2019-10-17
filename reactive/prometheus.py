@@ -1,14 +1,15 @@
-from charms.layer.caas_base import pod_spec_set
-from charms.reactive import endpoint_from_flag
 from charms.reactive import when, when_not
 from charms.reactive.flags import set_flag, register_trigger, clear_flag
 from charmhelpers.core.hookenv import (
     log,
     metadata,
     config,
+    network_get,
+    relation_id,
 )
 from charms import layer
-from charmhelpers.core.hookenv import is_leader
+from charmhelpers.core import hookenv
+import traceback
 
 
 register_trigger(when='layer.docker-resource.prometheus-image.changed',
@@ -49,13 +50,13 @@ def configure():
     try:
         spec = make_pod_spec()
         log('set pod spec:\n{}'.format(spec))
-        pod_spec_set(spec)
+        layer.caas_base.pod_spec_set(spec)
         set_flag('prometheus-k8s.configured')
         layer.status.active('ready')
 
     except Exception as e:
         layer.status.blocked('k8s spec failed to deploy: {}'.format(e))
-
+        log(traceback.format_exc(), level=hookenv.ERROR)
 
 @when('prometheus-k8s.configured')
 def set_prometheus_active():
@@ -67,24 +68,27 @@ def set_prometheus_active():
     layer.status.active('ready')
 
 
-@when('prometheus-k8s.configured', 'prometheus.available')
-def send_config():
+@when('prometheus-k8s.configured', 'endpoint.prometheus.available')
+def send_config(prometheus):
     """Send prometheus configuration to prometheus
     Sent information:
         - Prometheus Host (ip)
         - Prometheus Port
 
     Conditions:
-        - prometheus-k8s.active
-        - prometheus.available
+        - prometheus-k8s.configured
+        - endpoint.prometheus.available
     """
     layer.status.maintenance('Sending prometheus configuration')
     cfg = config()
     try:
-        prometheus = endpoint_from_flag('prometheus.available')
-        if prometheus:
-            prometheus.configure(port=cfg.get('advertised-port'))
-            clear_flag('prometheus.available')
+        info = network_get('prometheus', relation_id())
+        log('network info {0}'.format(info))
+        host = info.get('ingress-addresses', [""])[0]
+
+        prometheus.configure(hostname=host,
+                             port=cfg.get('advertised-port'))
+        clear_flag('endpoint.prometheus.available')
     except Exception as e:
         log("Exception sending config: {}".format(e))
 

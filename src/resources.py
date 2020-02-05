@@ -2,4 +2,6 @@ from ops import framework
 
 
 class OCIImageResource(framework.Object):
-    pass
+
+    def fetch(self):
+        pass

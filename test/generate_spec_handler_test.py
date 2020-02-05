@@ -20,19 +20,19 @@ class GenerateSpecHandlerTest(unittest.TestCase):
 
     def test_spec_generated_succesfully(self):
         # Set up
-        image_metadata = MagicMock(OCIImageResource)
-        image_metadata.registry_path = f'{uuid4()}/{uuid4()}'
-        image_metadata.username = f'{uuid4()}'
-        image_metadata.password = f'{uuid4()}'
+        image_resource = MagicMock(OCIImageResource)
+        image_resource.registry_path = f'{uuid4()}/{uuid4()}'
+        image_resource.username = f'{uuid4()}'
+        image_resource.password = f'{uuid4()}'
 
         app_name = f'{uuid4()}'
-        http_port = random.randint(1, 65535)
+        advertised_port = random.randint(1, 65535)
 
         # Exercise the code
         output = handlers.generate_spec(app_name=app_name,
-                                        http_port=http_port,
-                                        image_metadata_fetched=True,
-                                        image_metadata=image_metadata,
+                                        advertised_port=advertised_port,
+                                        image_resource_fetched=True,
+                                        image_resource=image_resource,
                                         spec_is_set=False)
 
         # Assertions
@@ -44,13 +44,13 @@ class GenerateSpecHandlerTest(unittest.TestCase):
                 {
                     'name': app_name,
                     'imageDetails': {
-                        'imagePath': image_metadata.registry_path,
-                        'username': image_metadata.username,
-                        'password': image_metadata.password
+                        'imagePath': image_resource.registry_path,
+                        'username': image_resource.username,
+                        'password': image_resource.password
                     },
                     'ports': [
                         {
-                            'containerPort': http_port,
+                            'containerPort': advertised_port,
                             'protocol': 'TCP'
                         }
                     ]

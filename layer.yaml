@@ -1,6 +1,0 @@
-includes:
-  - "layer:caas-base"
-  - 'layer:docker-resource'
-  - 'interface:prometheus'
-
-repo: https://code.launchpad.net/osm-k8s-bundle

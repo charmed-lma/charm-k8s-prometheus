@@ -1,7 +1,0 @@
-gate_bundles:
-- prometheus
-- prometheus-ha
-smoke_bundles:
-- prometheus
-tests:
-- tests.basic_deployment.BasicDeployment

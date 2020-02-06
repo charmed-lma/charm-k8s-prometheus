@@ -7,7 +7,7 @@ from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
 
-from resources import OCIImageResource
+from oci_image import OCIImageResource
 import handlers
 
 

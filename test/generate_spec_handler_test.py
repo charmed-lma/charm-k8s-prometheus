@@ -10,9 +10,9 @@ sys.path.append('lib')
 from ops.model import (
     MaintenanceStatus,
 )
+from oci_image import OCIImageResource
 
 sys.path.append('src')
-from resources import OCIImageResource
 import handlers
 
 

@@ -115,3 +115,5 @@ class CharmTest(unittest.TestCase):
         assert mock_framework.model.set_spec.call_count == 1
         assert mock_framework.model.set_spec.call_args == \
             call(mock_generate_spec.return_value.spec)
+
+        assert charm_obj.state.spec_is_set

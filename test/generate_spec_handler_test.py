@@ -8,6 +8,7 @@ from uuid import uuid4
 
 sys.path.append('lib')
 from ops.model import (
+    ActiveStatus,
     MaintenanceStatus,
 )
 
@@ -57,3 +58,24 @@ class GenerateSpecHandlerTest(unittest.TestCase):
                 }
             ]
         }
+
+    def test_spec_was_previously_set_succesfully(self):
+        # Set up
+        image_resource = MagicMock(OCIImageResource)
+        image_resource.image_path = f'{uuid4()}/{uuid4()}'
+        image_resource.username = f'{uuid4()}'
+        image_resource.password = f'{uuid4()}'
+
+        app_name = f'{uuid4()}'
+        advertised_port = random.randint(1, 65535)
+
+        # Exercise the code
+        output = handlers.generate_spec(app_name=app_name,
+                                        advertised_port=advertised_port,
+                                        image_resource_fetched=True,
+                                        image_resource=image_resource,
+                                        spec_is_set=True)
+
+        # Assertions
+        assert type(output.unit_status) == ActiveStatus
+        assert output.spec is None

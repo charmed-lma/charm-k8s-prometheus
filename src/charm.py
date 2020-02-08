@@ -43,9 +43,8 @@ class Charm(CharmBase):
         fw.model.unit.status = output.unit_status
 
         if output.spec:
-            fw.model.set_spec(output.spec)
-
-        self.state.spec_is_set = (output.spec is not None)
+            fw.model.pod.set_spec(output.spec)
+            self.state.spec_is_set = True
 
 
 if __name__ == "__main__":

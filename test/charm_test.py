@@ -21,6 +21,7 @@ from ops.framework import (
     Framework
 )
 from ops.model import (
+    ActiveStatus,
     MaintenanceStatus,
 )
 from charm import Charm
@@ -95,7 +96,6 @@ class CharmTest(unittest.TestCase):
         ))
 
         charm_obj = Charm(mock_framework, None)
-        spec_is_set = charm_obj.state.spec_is_set
 
         # Exercise code
         charm_obj.on_spec_changed(mock_event)
@@ -107,13 +107,57 @@ class CharmTest(unittest.TestCase):
             advertised_port=mock_advertised_port,
             image_resource_fetched=image_resource_fetched,
             image_resource=mock_oci_image_resource_obj,
-            spec_is_set=spec_is_set)
+            spec_is_set=False)
 
         assert mock_framework.model.unit.status == \
             mock_generate_spec.return_value.unit_status
 
-        assert mock_framework.model.set_spec.call_count == 1
-        assert mock_framework.model.set_spec.call_args == \
+        assert mock_framework.model.pod.set_spec.call_count == 1
+        assert mock_framework.model.pod.set_spec.call_args == \
             call(mock_generate_spec.return_value.spec)
+
+        assert charm_obj.state.spec_is_set
+
+    @patch('charm.handlers.generate_spec', autospec=True)
+    @patch('charm.OCIImageResource', autospec=True)
+    def test__on_spec_changed__spec_was_previously_set(
+            self,
+            mock_oci_image_resource_cls,
+            mock_generate_spec):
+        # Setup
+        mock_oci_image_resource_obj = mock_oci_image_resource_cls.return_value
+        mock_oci_image_resource_obj.registry_path = f'{uuid4()}/{uuid4()}'
+        mock_oci_image_resource_obj.username = f'{uuid4()}'
+        mock_oci_image_resource_obj.password = f'{uuid4()}'
+        image_resource_fetched = True
+        mock_oci_image_resource_obj.fetch.return_value = image_resource_fetched
+
+        mock_framework = self.create_framework()
+        mock_advertised_port = mock_framework.model.config['advertised_port']
+        mock_event = MagicMock(EventBase)
+        mock_generate_spec.return_value = SimpleNamespace(**dict(
+            unit_status=ActiveStatus(),
+            spec=None
+        ))
+
+        charm_obj = Charm(mock_framework, None)
+        charm_obj.state.spec_is_set = True
+
+        # Exercise code
+        charm_obj.on_spec_changed(mock_event)
+
+        # Assertions
+        assert mock_generate_spec.call_count == 1
+        assert mock_generate_spec.call_args == call(
+            app_name=mock_framework.model.app.name,
+            advertised_port=mock_advertised_port,
+            image_resource_fetched=image_resource_fetched,
+            image_resource=mock_oci_image_resource_obj,
+            spec_is_set=True)
+
+        assert mock_framework.model.unit.status == \
+            mock_generate_spec.return_value.unit_status
+
+        assert mock_framework.model.pod.set_spec.call_count == 0
 
         assert charm_obj.state.spec_is_set

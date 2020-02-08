@@ -4,6 +4,7 @@ import sys
 sys.path.append('lib')
 
 from ops.model import (
+    ActiveStatus,
     MaintenanceStatus,
 )
 
@@ -35,25 +36,31 @@ def generate_spec(app_name,
     :rtype: :class:`handlers.SpecGenerationOutput`
 
     """
-    output = dict(
-        unit_status=MaintenanceStatus("Configuring pod"),
-        spec={
-            'containers': [
-                {
-                    'name': app_name,
-                    'imageDetails': {
-                        'imagePath': image_resource.image_path,
-                        'username': image_resource.username,
-                        'password': image_resource.password
-                    },
-                    'ports': [
-                        {
-                            'containerPort': advertised_port,
-                            'protocol': 'TCP'
-                        }
-                    ]
-                }
-            ]
-        }
-    )
+    if spec_is_set:
+        output = dict(
+            unit_status=ActiveStatus(),
+            spec=None
+        )
+    else:
+        output = dict(
+            unit_status=MaintenanceStatus("Configuring pod"),
+            spec={
+                'containers': [
+                    {
+                        'name': app_name,
+                        'imageDetails': {
+                            'imagePath': image_resource.image_path,
+                            'username': image_resource.username,
+                            'password': image_resource.password
+                        },
+                        'ports': [
+                            {
+                                'containerPort': advertised_port,
+                                'protocol': 'TCP'
+                            }
+                        ]
+                    }
+                ]
+            }
+        )
     return SimpleNamespace(**output)

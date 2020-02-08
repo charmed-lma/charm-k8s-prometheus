@@ -42,7 +42,7 @@ def generate_spec(app_name,
                 {
                     'name': app_name,
                     'imageDetails': {
-                        'imagePath': image_resource.registry_path,
+                        'imagePath': image_resource.image_path,
                         'username': image_resource.username,
                         'password': image_resource.password
                     },

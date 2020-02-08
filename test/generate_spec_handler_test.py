@@ -10,10 +10,10 @@ sys.path.append('lib')
 from ops.model import (
     MaintenanceStatus,
 )
-from oci_image import OCIImageResource
 
 sys.path.append('src')
 import handlers
+from resources import OCIImageResource
 
 
 class GenerateSpecHandlerTest(unittest.TestCase):
@@ -21,7 +21,7 @@ class GenerateSpecHandlerTest(unittest.TestCase):
     def test_spec_generated_succesfully(self):
         # Set up
         image_resource = MagicMock(OCIImageResource)
-        image_resource.registry_path = f'{uuid4()}/{uuid4()}'
+        image_resource.image_path = f'{uuid4()}/{uuid4()}'
         image_resource.username = f'{uuid4()}'
         image_resource.password = f'{uuid4()}'
 
@@ -44,7 +44,7 @@ class GenerateSpecHandlerTest(unittest.TestCase):
                 {
                     'name': app_name,
                     'imageDetails': {
-                        'imagePath': image_resource.registry_path,
+                        'imagePath': image_resource.image_path,
                         'username': image_resource.username,
                         'password': image_resource.password
                     },

@@ -7,7 +7,7 @@ from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
 
-from oci_image import OCIImageResource
+from resources import OCIImageResource
 import handlers
 
 
@@ -22,7 +22,7 @@ class Charm(CharmBase):
                       self.on.config_changed):
             self.framework.observe(event, self.on_spec_changed)
 
-        self.prometheus_image = OCIImageResource(self, 'prometheus_image')
+        self.prometheus_image = OCIImageResource('prometheus_image')
 
         try:
             self.state.spec_is_set
@@ -31,11 +31,12 @@ class Charm(CharmBase):
 
     def on_spec_changed(self, event):
         fw = self.framework
+        adapter = self.model.resources
 
         output = handlers.generate_spec(
             app_name=fw.model.app.name,
             advertised_port=fw.model.config['advertised_port'],
-            image_resource_fetched=self.prometheus_image.fetch(),
+            image_resource_fetched=self.prometheus_image.fetch(adapter),
             image_resource=self.prometheus_image,
             spec_is_set=self.state.spec_is_set
         )

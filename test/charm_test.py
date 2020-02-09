@@ -7,8 +7,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import (
     call,
-    MagicMock,
-    Mock,
+    create_autospec,
     patch
 )
 from uuid import uuid4
@@ -16,13 +15,21 @@ from uuid import uuid4
 sys.path.append('src')
 sys.path.append('lib')
 
+from ops.charm import (
+    CharmMeta,
+)
 from ops.framework import (
     EventBase,
     Framework
 )
 from ops.model import (
     ActiveStatus,
+    Application,
     MaintenanceStatus,
+    Model,
+    Pod,
+    Resources,
+    Unit,
 )
 from charm import Charm
 
@@ -31,23 +38,40 @@ class CharmTest(unittest.TestCase):
 
     def setUp(self):
         self.tmpdir = Path(tempfile.mkdtemp())
+        # Ensure that we clean up the tmp directory even when the test
+        # fails or errors out for whatever reason.
         self.addCleanup(shutil.rmtree, self.tmpdir)
 
     def create_framework(self):
         framework = Framework(self.tmpdir / "framework.data",
                               self.tmpdir, None, None)
+        # Ensure that the Framework object is closed and cleaned up even
+        # when the test fails or errors out.
         self.addCleanup(framework.close)
 
-        framework.model = Mock()
-        framework.model.app = Mock()
+        framework.model = create_autospec(Model,
+                                          spec_set=True,
+                                          instance=True)
+        framework.model.app = create_autospec(Application,
+                                              spec_set=True,
+                                              instance=True)
         framework.model.app.name = f'{uuid4()}'
-        framework.model.unit = Mock()
+        framework.model.pod = create_autospec(Pod,
+                                              spec_set=True,
+                                              instance=True)
+        framework.model.resources = create_autospec(Resources,
+                                                    spec_set=True,
+                                                    instance=True)
+        framework.model.unit = create_autospec(Unit,
+                                               spec_set=True,
+                                               instance=True)
         framework.model.config = {
             'advertised_port': random.randint(1, 65535)
         }
-        framework.state = Mock()
 
-        framework.meta = Mock()
+        framework.meta = create_autospec(CharmMeta,
+                                         spec_set=True,
+                                         instance=True)
         framework.meta.relations = []
         framework.meta.storages = []
         framework.meta.functions = []
@@ -69,7 +93,7 @@ class CharmTest(unittest.TestCase):
 
         mock_framework = self.create_framework()
         mock_advertised_port = mock_framework.model.config['advertised_port']
-        mock_event = MagicMock(EventBase)
+        mock_event = create_autospec(EventBase)
         mock_generate_spec.return_value = SimpleNamespace(**dict(
             unit_status=MaintenanceStatus("Configuring pod"),
             spec={
@@ -134,7 +158,7 @@ class CharmTest(unittest.TestCase):
 
         mock_framework = self.create_framework()
         mock_advertised_port = mock_framework.model.config['advertised_port']
-        mock_event = MagicMock(EventBase)
+        mock_event = create_autospec(EventBase)
         mock_generate_spec.return_value = SimpleNamespace(**dict(
             unit_status=ActiveStatus(),
             spec=None

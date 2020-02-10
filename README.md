@@ -23,10 +23,10 @@ run:
 
     make coverage-server
 
-The above command should output the port on your workstation where server is
-serving the HTML coverage reports. If you are running this on [Multipass](https://multipass.io)
-then first get the Ubuntu VMs IP via `multipass list` and then browse to that
-IP and port.
+The above command should output the port on your workstation where the server is
+listening on. If you are running the above command on [Multipass](https://multipass.io),
+first get the Ubuntu VM's IP via `multipass list` and then browse to that IP and
+the abovementioned port.
 
 NOTE: You can leave that static server running in one session while you continue
 to execute `tox` on another session. That server will pick up any new changes to the report

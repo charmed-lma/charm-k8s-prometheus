@@ -68,3 +68,12 @@ report and the coverage report automatically. To get a view of what the state
 of each relevant branch is, click on the badges found at the top of this README.
 
 
+References
+----------
+
+Much of how this charm is architected is guided by the following classic
+references. It will do well for future contributors to read and take them to heart:
+
+1. [Hexagonal Architecture](https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)) by Alistair Cockburn
+1. [Boundaries (Video)](https://pyvideo.org/pycon-us-2013/boundaries.html) by Gary Bernhardt
+1. [Domain Driven Design (Book)](https://dddcommunity.org/book/evans_2003/) by Eric Evans

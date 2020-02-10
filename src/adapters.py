@@ -25,4 +25,4 @@ class FrameworkAdapter:
         self._framework.model.pod.set_spec(spec_obj)
 
     def set_unit_status(self, state_obj):
-        self._framework.unit.status = state_obj
+        self._framework.model.unit.status = state_obj

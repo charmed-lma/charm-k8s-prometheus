@@ -8,7 +8,11 @@ python:
 
 install:
     - pip install -r test-requirements.txt
+    - pip install coveralls
 
 script:
     - flake8 --config=.flake8
-    - pytest -c pytest.ini
+    - pytest -c pytest.ini --cov=src
+
+after_success:
+    - coveralls

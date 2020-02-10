@@ -10,7 +10,7 @@ class FrameworkAdapter:
         self._framework = framework
 
     def get_app_name(self):
-        return self._framework.model.app_name
+        return self._framework.model.app.name
 
     def get_config(self, key):
         return self._framework.model.config[key]

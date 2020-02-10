@@ -34,7 +34,7 @@ Optional: Grab coffee/beer/tea or do a 5k run
 ```
 juju create-storage-pool operator-storage kubernetes storage-class=microk8s-hostpath
 juju add-model prometheus
-juju deploy .
+juju deploy . --resource prometheus_image=prom/prometheus:latest
 ```
 
 

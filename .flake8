@@ -1,0 +1,3 @@
+[flake8]
+exclude = mod/*, lib/*, .tox
+ignore = E402

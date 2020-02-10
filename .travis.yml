@@ -7,7 +7,8 @@ python:
     - "3.7"
 
 install:
-    - pip install -r requirements.txt
+    - pip install -r test-requirements.txt
 
 script:
-    - pytest
+    - flake8 --config=.flake8
+    - pytest -c pytest.ini

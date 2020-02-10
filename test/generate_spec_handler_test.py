@@ -2,11 +2,14 @@ import random
 import sys
 import unittest
 from unittest.mock import (
-    MagicMock
+    create_autospec,
 )
 from uuid import uuid4
 
 sys.path.append('lib')
+from ops.framework import (
+    EventBase,
+)
 from ops.model import (
     ActiveStatus,
     MaintenanceStatus,
@@ -19,9 +22,9 @@ from resources import OCIImageResource
 
 class GenerateSpecHandlerTest(unittest.TestCase):
 
-    def test_spec_generated_succesfully(self):
+    def test_pod_spec_should_be_generated(self):
         # Set up
-        image_resource = MagicMock(OCIImageResource)
+        image_resource = create_autospec(OCIImageResource, spec_set=True)
         image_resource.image_path = f'{uuid4()}/{uuid4()}'
         image_resource.username = f'{uuid4()}'
         image_resource.password = f'{uuid4()}'
@@ -29,10 +32,12 @@ class GenerateSpecHandlerTest(unittest.TestCase):
         app_name = f'{uuid4()}'
         advertised_port = random.randint(1, 65535)
 
+        mock_event = create_autospec(EventBase)
+
         # Exercise the code
-        output = handlers.generate_spec(app_name=app_name,
+        output = handlers.generate_spec(event=mock_event,
+                                        app_name=app_name,
                                         advertised_port=advertised_port,
-                                        image_resource_fetched=True,
                                         image_resource=image_resource,
                                         spec_is_set=False)
 
@@ -59,20 +64,23 @@ class GenerateSpecHandlerTest(unittest.TestCase):
             ]
         }
 
-    def test_spec_was_previously_set_succesfully(self):
+    def test_spec_should_not_be_generated(self):
         # Set up
-        image_resource = MagicMock(OCIImageResource)
+        image_resource = create_autospec(OCIImageResource, spec_set=True)
         image_resource.image_path = f'{uuid4()}/{uuid4()}'
         image_resource.username = f'{uuid4()}'
         image_resource.password = f'{uuid4()}'
 
         app_name = f'{uuid4()}'
+
         advertised_port = random.randint(1, 65535)
 
+        mock_event = create_autospec(EventBase)
+
         # Exercise the code
-        output = handlers.generate_spec(app_name=app_name,
+        output = handlers.generate_spec(event=mock_event,
+                                        app_name=app_name,
                                         advertised_port=advertised_port,
-                                        image_resource_fetched=True,
                                         image_resource=image_resource,
                                         spec_is_set=True)
 

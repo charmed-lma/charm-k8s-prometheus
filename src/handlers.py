@@ -9,23 +9,24 @@ from ops.model import (
 )
 
 
-def generate_spec(app_name,
+def generate_spec(event,
+                  app_name,
                   advertised_port,
-                  image_resource_fetched,
                   image_resource,
                   spec_is_set):
     """Generates the k8s spec needed to deploy Prometheus on k8s
+
+    :param: :class:`ops.framework.EventBase` event: The event that triggered
+        the calling handler.
 
     :param str app_name: The name of the application.
 
     :param int advertised_port: The port inside the container that prometheus
         should bind to.
 
-    :param bool image_resource_fetched: Indicates whether the image metadata
-        been fetched or not.
-
     :param OCIImageResource image_resource: Image metadata object containing
-        the registry path, username, and password.
+        the registry path, username, and password. May be set to None if no
+        image metadata is available.
 
     :param bool spec_is_set: Indicates whether the spec has been previously
         set by Juju or not.

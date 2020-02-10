@@ -12,7 +12,7 @@ install:
 
 script:
     - flake8 --config=.flake8
-    - pytest -c pytest.ini --cov=src
+    - pytest -c pytest.ini
 
 after_success:
     - coveralls

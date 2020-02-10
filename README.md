@@ -6,6 +6,33 @@ Juju Charm for Prometheus on Kubernetes
 | master | [![Build Status (master)](https://travis-ci.org/relaxdiego/charm-k8s-prometheus.svg?branch=master)](https://travis-ci.org/relaxdiego/charm-k8s-prometheus) | [![Coverage Status](https://coveralls.io/repos/github/relaxdiego/charm-k8s-prometheus/badge.svg?branch=master)](https://coveralls.io/github/relaxdiego/charm-k8s-prometheus?branch=master) |
 
 
+Quick-ish Start
+---------------
+
+
+```
+git submodule update --init --recursive
+sudo snap install juju --classic
+sudo snap install microk8s --classic
+sudo microk8s.enable dns dashboard registry storage
+sudo usermod -a -G microk8s ubuntu
+```
+
+Log out then log back in to apply the group membership
+
+```
+juju bootstrap microk8s mk8s
+```
+
+Optional: Grab coffee/beer/tea or do a 5k run
+
+```
+juju create-storage-pool operator-storage kubernetes storage-class=microk8s-hostpath
+juju add-model prometheus
+juju deploy .
+```
+
+
 Running the Tests on Your Workstation
 -------------------------------------
 
@@ -39,3 +66,5 @@ Relying on More Comprehensive Tests
 This project makes use of Travis CI and Coveralls.io to generate the build
 report and the coverage report automatically. To get a view of what the state
 of each relevant branch is, click on the badges found at the top of this README.
+
+

@@ -1,6 +1,11 @@
 Juju Charm for Prometheus on Kubernetes
 =======================================
 
+CI Badges
+---------
+
+Click on each badge for more details.
+
 | Branch | Build Status | Coverage |
 |--------|--------------|----------|
 | master | [![Build Status (master)](https://travis-ci.org/relaxdiego/charm-k8s-prometheus.svg?branch=master)](https://travis-ci.org/relaxdiego/charm-k8s-prometheus) | [![Coverage Status](https://coveralls.io/repos/github/relaxdiego/charm-k8s-prometheus/badge.svg?branch=master)](https://coveralls.io/github/relaxdiego/charm-k8s-prometheus?branch=master) |
@@ -33,8 +38,8 @@ juju deploy .
 ```
 
 
-Running the Tests on Your Workstation
--------------------------------------
+Running the Unit Tests on Your Workstation
+------------------------------------------
 
 To run the test using the default interpreter as configured in `tox.ini`, run:
 
@@ -60,12 +65,14 @@ to execute `tox` on another session. That server will pick up any new changes to
 automatically so you don't have to restart it each time.
 
 
-Relying on More Comprehensive Tests
------------------------------------
+Relying on More Comprehensive Unit Tests
+----------------------------------------
 
-This project makes use of Travis CI and Coveralls.io to generate the build
-report and the coverage report automatically. To get a view of what the state
-of each relevant branch is, click on the badges found at the top of this README.
+To ensure that this charm is tested on the widest number of platforms possible,
+we make use of Travis CI which also automatically reports the coverage report
+to a publicly available Coverall.io page. To get a view of what the state of
+each relevant branch is, click on the appropriate badges found at the top of
+this README.
 
 
 References

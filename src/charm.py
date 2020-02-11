@@ -37,6 +37,8 @@ class Charm(CharmBase):
 
         self.prometheus_image = OCIImageResource('prometheus_image')
 
+        self.state.set_default(spec_is_set=False)
+
     def set_spec(self, event):
 
         resources = self.adapter.get_resources_repo()
@@ -47,7 +49,7 @@ class Charm(CharmBase):
             app_name=self.adapter.get_app_name(),
             advertised_port=self.adapter.get_config('advertised_port'),
             image_resource=self.prometheus_image,
-            spec_is_set=getattr(self.state, 'spec_is_set', False)
+            spec_is_set=self.state.spec_is_set
         )
         self.adapter.set_unit_status(output.unit_status)
 

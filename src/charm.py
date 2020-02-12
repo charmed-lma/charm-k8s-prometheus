@@ -8,7 +8,7 @@ from ops.framework import StoredState
 from ops.main import main
 
 from adapters import FrameworkAdapter
-from resources import OCIImageResource
+from resources import PrometheusImageResource
 import handlers
 
 
@@ -35,7 +35,7 @@ class Charm(CharmBase):
         for event, handler in event_handler_bindings.items():
             self.adapter.observe(event, handler)
 
-        self.prometheus_image = OCIImageResource('prometheus_image')
+        self.prometheus_image = PrometheusImageResource()
 
         self.state.set_default(spec_is_set=False)
 

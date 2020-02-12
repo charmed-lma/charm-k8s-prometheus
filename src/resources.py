@@ -5,6 +5,7 @@ from ops.model import BlockedStatus, ModelError
 
 
 class OCIImageResource(Object):
+
     def __init__(self, resource_name):
         self.resource_name = resource_name
 
@@ -43,6 +44,12 @@ class OCIImageResource(Object):
     @property
     def password(self):
         return self.resource_dict['password']
+
+
+class PrometheusImageResource(OCIImageResource):
+
+    def __init__(self):
+        super().__init__(resource_name='prometheus_image')
 
 
 class ResourceError(ModelError):

@@ -52,7 +52,7 @@ class CharmTest(unittest.TestCase):
     # real object, autospec=True automatically copies the signature of the
     # mocked object to the mock.
     @patch('charm.handlers.generate_spec', spec_set=True, autospec=True)
-    @patch('charm.OCIImageResource', spec_set=True, autospec=True)
+    @patch('charm.PrometheusImageResource', spec_set=True, autospec=True)
     @patch('charm.FrameworkAdapter', spec_set=True, autospec=True)
     def test__set_spec__spec_should_be_set(self,
                                            mock_framework_adapter_cls,
@@ -127,7 +127,7 @@ class CharmTest(unittest.TestCase):
         assert charm_obj.state.spec_is_set
 
     @patch('charm.handlers.generate_spec', spec_set=True, autospec=True)
-    @patch('charm.OCIImageResource', spec_set=True, autospec=True)
+    @patch('charm.PrometheusImageResource', spec_set=True, autospec=True)
     @patch('charm.FrameworkAdapter', spec_set=True, autospec=True)
     def test__set_spec__spec_should_not_be_set(
             self,

@@ -15,3 +15,16 @@ options:
         description: Default target to be added in Prometheus
         type: string
         default: ""
+    external_labels:
+        description: |
+          A JSON string with key-value pairs that specify the The labels to
+          attach to metrics in this Prometheus instance before they get pulled
+          by an aggregating parent. This is useful in the case of federation
+          where you want each datacenter to have its own Prometheus instance
+          and then have a global instance that pull from each of these
+          "children" instances. By specifying a unique set of external_labels
+          for each child instance, you can easily determine in the aggregating
+          Prometheus instance which datacenter a metric is coming from.
+          Ex. '{ "cluster": "datacenter1" }'
+        type: string
+        default: "{}"

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import sys
 sys.path.append('lib')
 
@@ -46,6 +47,9 @@ class Charm(CharmBase):
 
         resources = self.adapter.get_resources_repo()
         unit_status = ''
+        external_labels = json.loads(
+            self.adapter.get_config('external_labels')
+        )
 
         try:
             self.prometheus_image.fetch(resources)
@@ -55,7 +59,8 @@ class Charm(CharmBase):
                 app_name=self.adapter.get_app_name(),
                 advertised_port=self.adapter.get_config('advertised_port'),
                 image_resource=self.prometheus_image,
-                spec_is_set=self.state.spec_is_set
+                spec_is_set=self.state.spec_is_set,
+                external_labels=external_labels,
             )
 
             if output.spec:

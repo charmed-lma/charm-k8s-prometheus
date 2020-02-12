@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import random
 import shutil
@@ -11,6 +12,7 @@ from unittest.mock import (
     patch
 )
 from uuid import uuid4
+import yaml
 
 sys.path.append('lib')
 from ops.charm import (
@@ -70,14 +72,42 @@ class CharmTest(unittest.TestCase):
         mock_image_resource_obj.username = f'{uuid4()}'
         mock_image_resource_obj.password = f'{uuid4()}'
 
+        mock_external_labels = {
+            f'{uuid4()}': f'{uuid4()}',
+            f'{uuid4()}': f'{uuid4()}',
+            f'{uuid4()}': f'{uuid4()}',
+        }
+
         mock_advertised_port = random.randint(1, 64535)
+
         mock_adapter = mock_framework_adapter_cls.return_value
         mock_adapter.get_app_name.return_value = f'{uuid4()}'
         mock_adapter.get_config.side_effect = [
+            json.dumps(mock_external_labels),
             mock_advertised_port
         ]
 
         mock_event = create_autospec(EventBase)
+
+        mock_prometheus_yaml = yaml.dump({
+            'global': {
+                'scrape_interval': '15s',
+                'external_labels': mock_external_labels
+            },
+            'scrape_configs': [
+                {
+                    'job_name': 'prometheus',
+                    'scrape_interval': '5s',
+                    'static_configs': [
+                        {
+                            'targets': [
+                                f'localhost:{mock_advertised_port}'
+                            ]
+                        }
+                    ]
+                }
+            ]
+        })
 
         mock_output = SimpleNamespace(**dict(
             unit_status=MaintenanceStatus("Configuring pod"),
@@ -98,6 +128,15 @@ class CharmTest(unittest.TestCase):
                                 'containerPort': mock_advertised_port,
                                 'protocol': 'TCP'
                             }
+                        ],
+                        'files': [
+                            {
+                                'name': 'config',
+                                'mountPath': '/etc/prometheus',
+                                'files': {
+                                    'prometheus.yml': mock_prometheus_yaml
+                                }
+                            }
                         ]
                     }
                 ]
@@ -116,7 +155,8 @@ class CharmTest(unittest.TestCase):
             app_name=mock_adapter.get_app_name.return_value,
             advertised_port=mock_advertised_port,
             image_resource=mock_image_resource_obj,
-            spec_is_set=False)
+            spec_is_set=False,
+            external_labels=mock_external_labels)
 
         assert mock_adapter.set_unit_status.call_count == 1
         assert type(mock_adapter.set_unit_status.call_args[0][0]) == \
@@ -150,6 +190,7 @@ class CharmTest(unittest.TestCase):
         mock_adapter = mock_framework_adapter_cls.return_value
         mock_adapter.get_app_name.return_value = f'{uuid4()}'
         mock_adapter.get_config.side_effect = [
+            '{}',
             mock_advertised_port
         ]
 
@@ -174,7 +215,8 @@ class CharmTest(unittest.TestCase):
             app_name=mock_adapter.get_app_name.return_value,
             advertised_port=mock_advertised_port,
             image_resource=mock_image_resource_obj,
-            spec_is_set=True)
+            spec_is_set=True,
+            external_labels={})
 
         assert mock_adapter.set_unit_status.call_count == 1
         assert type(mock_adapter.set_unit_status.call_args[0][0]) == \
@@ -198,6 +240,7 @@ class CharmTest(unittest.TestCase):
             ResourceError(f'{uuid4()}', f'{uuid4()}')
 
         mock_adapter = mock_framework_adapter_cls.return_value
+        mock_adapter.get_config.side_effect = ['{}']
 
         mock_event = create_autospec(EventBase)
 

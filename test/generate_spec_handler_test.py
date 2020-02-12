@@ -5,6 +5,7 @@ from unittest.mock import (
     create_autospec,
 )
 from uuid import uuid4
+import yaml
 
 sys.path.append('lib')
 from ops.framework import (
@@ -34,18 +35,33 @@ class GenerateSpecHandlerTest(unittest.TestCase):
 
         mock_event = create_autospec(EventBase)
 
-        # Exercise the code
-        output = handlers.generate_spec(event=mock_event,
-                                        app_name=app_name,
-                                        advertised_port=advertised_port,
-                                        image_resource=image_resource,
-                                        spec_is_set=False)
+        expected_external_labels = {
+            f'{uuid4()}': f'{uuid4()}',
+            f'{uuid4()}': f'{uuid4()}',
+            f'{uuid4()}': f'{uuid4()}'
+        }
 
-        # Assertions
-        assert type(output.unit_status) == MaintenanceStatus
-        assert output.unit_status.message == "Configuring pod"
+        expected_prometheus_yaml = yaml.dump({
+            'global': {
+                'scrape_interval': '15s',
+                'external_labels': expected_external_labels
+            },
+            'scrape_configs': [
+                {
+                    'job_name': 'prometheus',
+                    'scrape_interval': '5s',
+                    'static_configs': [
+                        {
+                            'targets': [
+                                f'localhost:{advertised_port}'
+                            ]
+                        }
+                    ]
+                }
+            ]
+        })
 
-        assert output.spec == {
+        expected_spec = {
             'containers': [
                 {
                     'name': app_name,
@@ -59,10 +75,34 @@ class GenerateSpecHandlerTest(unittest.TestCase):
                             'containerPort': advertised_port,
                             'protocol': 'TCP'
                         }
+                    ],
+                    'files': [
+                        {
+                            'name': 'config',
+                            'mountPath': '/etc/prometheus',
+                            'files': {
+                                'prometheus.yml': expected_prometheus_yaml
+                            }
+                        }
                     ]
                 }
             ]
         }
+
+        # Exercise the code
+        output = handlers.generate_spec(
+            event=mock_event,
+            app_name=app_name,
+            advertised_port=advertised_port,
+            external_labels=expected_external_labels,
+            image_resource=image_resource,
+            spec_is_set=False)
+
+        # Assertions
+        assert type(output.unit_status) == MaintenanceStatus
+        assert output.unit_status.message == "Configuring pod"
+
+        assert output.spec == expected_spec
 
     def test_spec_should_not_be_generated(self):
         # Set up

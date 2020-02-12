@@ -8,7 +8,10 @@ from ops.framework import StoredState
 from ops.main import main
 
 from adapters import FrameworkAdapter
-from resources import PrometheusImageResource
+from resources import (
+    PrometheusImageResource,
+    ResourceError,
+)
 import handlers
 
 
@@ -42,20 +45,28 @@ class Charm(CharmBase):
     def set_spec(self, event):
 
         resources = self.adapter.get_resources_repo()
-        self.prometheus_image.fetch(resources)
+        unit_status = ''
 
-        output = handlers.generate_spec(
-            event=event,
-            app_name=self.adapter.get_app_name(),
-            advertised_port=self.adapter.get_config('advertised_port'),
-            image_resource=self.prometheus_image,
-            spec_is_set=self.state.spec_is_set
-        )
-        self.adapter.set_unit_status(output.unit_status)
+        try:
+            self.prometheus_image.fetch(resources)
 
-        if output.spec:
-            self.adapter.set_pod_spec(output.spec)
-            self.state.spec_is_set = True
+            output = handlers.generate_spec(
+                event=event,
+                app_name=self.adapter.get_app_name(),
+                advertised_port=self.adapter.get_config('advertised_port'),
+                image_resource=self.prometheus_image,
+                spec_is_set=self.state.spec_is_set
+            )
+
+            if output.spec:
+                self.adapter.set_pod_spec(output.spec)
+                self.state.spec_is_set = True
+
+            unit_status = output.unit_status
+        except ResourceError as err:
+            unit_status = err.status
+
+        self.adapter.set_unit_status(unit_status)
 
 
 if __name__ == "__main__":

@@ -22,12 +22,16 @@ from ops.framework import (
 )
 from ops.model import (
     ActiveStatus,
+    BlockedStatus,
     MaintenanceStatus,
 )
 
 sys.path.append('src')
 from charm import (
     Charm
+)
+from resources import (
+    ResourceError
 )
 
 
@@ -179,3 +183,37 @@ class CharmTest(unittest.TestCase):
         assert mock_adapter.set_pod_spec.call_count == 0
 
         assert charm_obj.state.spec_is_set
+
+    @patch('charm.handlers.generate_spec', spec_set=True, autospec=True)
+    @patch('charm.PrometheusImageResource', spec_set=True, autospec=True)
+    @patch('charm.FrameworkAdapter', spec_set=True, autospec=True)
+    def test__set_spec__fetch_raised_an_error(
+            self,
+            mock_framework_adapter_cls,
+            mock_image_resource_cls,
+            mock_generate_spec):
+        # Setup
+        mock_image_resource_obj = mock_image_resource_cls.return_value
+        mock_image_resource_obj.fetch.side_effect = \
+            ResourceError(f'{uuid4()}', f'{uuid4()}')
+
+        mock_adapter = mock_framework_adapter_cls.return_value
+
+        mock_event = create_autospec(EventBase)
+
+        # Exercise code
+        charm_obj = Charm(self.create_framework(), None)
+        charm_obj.set_spec(mock_event)
+
+        # Assertions
+        assert mock_generate_spec.call_count == 0
+
+        assert mock_adapter.set_unit_status.call_count == 1
+        assert type(mock_adapter.set_unit_status.call_args[0][0]) == \
+            BlockedStatus
+        assert mock_adapter.set_unit_status.call_args[0][0].message == \
+            mock_image_resource_obj.fetch.side_effect.status.message
+
+        assert mock_adapter.set_pod_spec.call_count == 0
+
+        assert charm_obj.state.spec_is_set is False

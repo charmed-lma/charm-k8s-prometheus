@@ -240,7 +240,6 @@ class CharmTest(unittest.TestCase):
             ResourceError(f'{uuid4()}', f'{uuid4()}')
 
         mock_adapter = mock_framework_adapter_cls.return_value
-        mock_adapter.get_config.side_effect = ['{}']
 
         mock_event = create_autospec(EventBase)
 

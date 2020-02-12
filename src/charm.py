@@ -47,12 +47,12 @@ class Charm(CharmBase):
 
         resources = self.adapter.get_resources_repo()
         unit_status = ''
-        external_labels = json.loads(
-            self.adapter.get_config('external_labels')
-        )
-
         try:
             self.prometheus_image.fetch(resources)
+
+            external_labels = json.loads(
+                self.adapter.get_config('external_labels')
+            )
 
             output = handlers.generate_spec(
                 event=event,

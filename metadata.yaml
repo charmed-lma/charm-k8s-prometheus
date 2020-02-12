@@ -1,4 +1,5 @@
-name: "prometheus-k8s"
+name: "charm-k8s-prometheus"
+display-name: "k8s-prometheus"
 summary: "Prometheus Charm"
 maintainers:
     - "Mark Maglana <mark.maglana@canonical.com>"
@@ -9,9 +10,9 @@ tags:
     - "application"
 series:
     - "kubernetes"
-provides:
-    prometheus:
-        interface: prometheus
+# provides:
+#     prometheus:
+#         interface: prometheus
 resources:
     prometheus_image:
         type: oci-image

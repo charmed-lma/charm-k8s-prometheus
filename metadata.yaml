@@ -1,9 +1,10 @@
 name: "prometheus-k8s"
 summary: "Prometheus Charm"
 maintainers:
+    - "Mark Maglana <mark.maglana@canonical.com>"
     - "SolutionsQA <solutionsqa@lists.canonical.com>"
 description: |
-  A CAAS charm to deploy Prometheus.
+  Deploys and operates Prometheus on Kubernetes
 tags:
     - "application"
 series:

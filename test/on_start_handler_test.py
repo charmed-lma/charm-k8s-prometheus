@@ -101,6 +101,11 @@ class GenerateSpecHandlerTest(unittest.TestCase):
         }]}
 
     def test_pod_spec_is_not_generated(self):
+        """
+        The pod spec should not be generated in this case since spec_is_set is
+        set to True which indicates that the pod spec has been set in the
+        backend from a previous call.
+        """
         # Set up
         mock_event = create_autospec(EventBase)
 

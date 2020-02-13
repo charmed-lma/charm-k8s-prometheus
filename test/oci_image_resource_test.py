@@ -39,16 +39,17 @@ class OCIImageResourceTest(unittest.TestCase):
         password: {mock_image_password}
         """
 
-        mock_resources_adapter = create_autospec(Resources, set_spec=True)
-        mock_resources_adapter.fetch.return_value = mock_path_obj
+        mock_resources_repo = create_autospec(Resources, set_spec=True)
+        mock_resources_repo.fetch.return_value = mock_path_obj
 
         # Exercise
-        image_resource = OCIImageResource(resource_name=mock_resource_name)
-        result = image_resource.fetch(mock_resources_adapter)
+        image_resource = OCIImageResource(resource_name=mock_resource_name,
+                                          resources_repo=mock_resources_repo)
+        result = image_resource.fetch()
 
         # Assert
-        assert mock_resources_adapter.fetch.call_count == 1
-        assert mock_resources_adapter.fetch.call_args == \
+        assert mock_resources_repo.fetch.call_count == 1
+        assert mock_resources_repo.fetch.call_args == \
             call(mock_resource_name)
         assert result
         assert image_resource.image_path == mock_image_path
@@ -62,21 +63,22 @@ class OCIImageResourceTest(unittest.TestCase):
         mock_path_obj = create_autospec(Path, spec_set=True)
         mock_path_obj.exists.return_value = False
 
-        mock_resources_adapter = create_autospec(Resources, set_spec=True)
-        mock_resources_adapter.fetch.return_value = mock_path_obj
+        mock_resources_repo = create_autospec(Resources, set_spec=True)
+        mock_resources_repo.fetch.return_value = mock_path_obj
 
         # Exercise
-        image_resource = OCIImageResource(resource_name=mock_resource_name)
+        image_resource = OCIImageResource(resource_name=mock_resource_name,
+                                          resources_repo=mock_resources_repo)
         with pytest.raises(ResourceError) as err:
-            image_resource.fetch(mock_resources_adapter)
+            image_resource.fetch()
 
             assert type(err.status) == BlockedStatus
             assert err.status.message == \
                 f'{mock_resource_name}: Resource not found at ' \
                 f'{str(mock_path_obj)}'
 
-        assert mock_resources_adapter.fetch.call_count == 1
-        assert mock_resources_adapter.fetch.call_args == \
+        assert mock_resources_repo.fetch.call_count == 1
+        assert mock_resources_repo.fetch.call_args == \
             call(mock_resource_name)
 
     def test__fetch__resource_path_is_unreadable(self):
@@ -87,13 +89,14 @@ class OCIImageResourceTest(unittest.TestCase):
         mock_path_obj.exists.return_value = True
         mock_path_obj.read_text.return_value = None
 
-        mock_resources_adapter = create_autospec(Resources, set_spec=True)
-        mock_resources_adapter.fetch.return_value = mock_path_obj
+        mock_resources_repo = create_autospec(Resources, set_spec=True)
+        mock_resources_repo.fetch.return_value = mock_path_obj
 
         # Exercise
-        image_resource = OCIImageResource(resource_name=mock_resource_name)
+        image_resource = OCIImageResource(resource_name=mock_resource_name,
+                                          resources_repo=mock_resources_repo)
         with pytest.raises(ResourceError) as err:
-            image_resource.fetch(mock_resources_adapter)
+            image_resource.fetch()
 
             assert type(err.status) == BlockedStatus
             assert err.status.message == \
@@ -114,13 +117,14 @@ class OCIImageResourceTest(unittest.TestCase):
             something: something: else
             """
 
-        mock_resources_adapter = create_autospec(Resources, set_spec=True)
-        mock_resources_adapter.fetch.return_value = mock_path_obj
+        mock_resources_repo = create_autospec(Resources, set_spec=True)
+        mock_resources_repo.fetch.return_value = mock_path_obj
 
         # Exercise
-        image_resource = OCIImageResource(resource_name=mock_resource_name)
+        image_resource = OCIImageResource(resource_name=mock_resource_name,
+                                          resources_repo=mock_resources_repo)
         with pytest.raises(ResourceError) as err:
-            image_resource.fetch(mock_resources_adapter)
+            image_resource.fetch()
 
             assert type(err.status) == BlockedStatus
             assert err.status.message == \

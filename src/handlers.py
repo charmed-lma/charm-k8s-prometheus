@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 import yaml
 
@@ -8,6 +9,13 @@ from ops.model import (
     ActiveStatus,
     MaintenanceStatus,
 )
+from resources import (
+    ResourceError,
+)
+
+
+def _create_output_obj(dict_obj):
+    return SimpleNamespace(**dict_obj)
 
 
 def on_start(event,
@@ -41,7 +49,20 @@ def on_start(event,
             unit_status=ActiveStatus(),
             spec=None
         )
+        return _create_output_obj(output)
     else:
+        try:
+            image_resource.fetch()
+        except ResourceError as err:
+            output = dict(
+                unit_status=err.status,
+                spec=None
+            )
+            return _create_output_obj(output)
+
+        external_labels = json.loads(config['external-labels'])
+        advertised_port = config['advertised-port']
+
         prometheus_yaml = yaml.dump({
             'global': {
                 'scrape_interval': '15s',
@@ -92,4 +113,5 @@ def on_start(event,
                 ]
             }
         )
-    return SimpleNamespace(**output)
+
+        return _create_output_obj(output)

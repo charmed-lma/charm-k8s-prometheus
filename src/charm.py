@@ -51,13 +51,13 @@ class Charm(CharmBase):
             self.prometheus_image.fetch(resources)
 
             external_labels = json.loads(
-                self.adapter.get_config('external_labels')
+                self.adapter.get_config('external-labels')
             )
 
             output = handlers.generate_spec(
                 event=event,
                 app_name=self.adapter.get_app_name(),
-                advertised_port=self.adapter.get_config('advertised_port'),
+                advertised_port=self.adapter.get_config('advertised-port'),
                 image_resource=self.prometheus_image,
                 spec_is_set=self.state.spec_is_set,
                 external_labels=external_labels,

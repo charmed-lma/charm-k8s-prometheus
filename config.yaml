@@ -1,21 +1,9 @@
 options:
-    advertised_hostname:
-        description: Advertised hostname
-        type: string
-        default: "prometheus"
-    advertised_port:
+    advertised-port:
         description: Prometheus Port
         type: int
         default: 9090
-    web_subpath:
-        description: Subpath for accessing Prometheus
-        type: string
-        default: /
-    default_target:
-        description: Default target to be added in Prometheus
-        type: string
-        default: ""
-    external_labels:
+    external-labels:
         description: |
           A JSON string with key-value pairs that specify the The labels to
           attach to metrics in this Prometheus instance before they get pulled

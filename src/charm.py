@@ -31,8 +31,8 @@ class Charm(CharmBase):
         # Bind event handlers to events
         event_handler_bindings = {
             self.on.start: self.on_start_delegator,
-            self.on.upgrade_charm: self.on_upgrade_charm_delegator,
-            self.on.config_changed: self.on_config_changed_delegator
+            self.on.upgrade_charm: self.on_start_delegator,
+            self.on.config_changed: self.on_start_delegator
         }
         for event, handler in event_handler_bindings.items():
             self.adapter.observe(event, handler)
@@ -57,12 +57,6 @@ class Charm(CharmBase):
             self.state.spec_is_set = True
 
         self.adapter.set_unit_status(output.unit_status)
-
-    def on_upgrade_charm_delegator(self, event):
-        pass
-
-    def on_config_changed_delegator(self, event):
-        pass
 
 
 if __name__ == "__main__":

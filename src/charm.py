@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import sys
 sys.path.append('lib')
 
@@ -11,7 +10,6 @@ from ops.main import main
 from adapters import FrameworkAdapter
 from resources import (
     PrometheusImageResource,
-    ResourceError,
 )
 import handlers
 
@@ -32,46 +30,39 @@ class Charm(CharmBase):
 
         # Bind event handlers to events
         event_handler_bindings = {
-            self.on.start: self.set_spec,
-            self.on.upgrade_charm: self.set_spec,
-            self.on.config_changed: self.set_spec
+            self.on.start: self.on_start_delegator,
+            self.on.upgrade_charm: self.on_upgrade_charm_delegator,
+            self.on.config_changed: self.on_config_changed_delegator
         }
         for event, handler in event_handler_bindings.items():
             self.adapter.observe(event, handler)
 
-        self.prometheus_image = PrometheusImageResource()
+        self.prometheus_image = PrometheusImageResource(
+            resources_repo=self.adapter.get_resources_repo()
+        )
 
         self.state.set_default(spec_is_set=False)
 
-    def set_spec(self, event):
+    def on_start_delegator(self, event):
+        output = handlers.on_start(
+            event=event,
+            app_name=self.adapter.get_app_name(),
+            config=self.adapter.get_config(),
+            image_resource=self.prometheus_image,
+            spec_is_set=self.state.spec_is_set
+        )
 
-        resources = self.adapter.get_resources_repo()
-        unit_status = ''
-        try:
-            self.prometheus_image.fetch(resources)
+        if output.spec:
+            self.adapter.set_pod_spec(output.spec)
+            self.state.spec_is_set = True
 
-            external_labels = json.loads(
-                self.adapter.get_config('external-labels')
-            )
+        self.adapter.set_unit_status(output.unit_status)
 
-            output = handlers.generate_spec(
-                event=event,
-                app_name=self.adapter.get_app_name(),
-                advertised_port=self.adapter.get_config('advertised-port'),
-                image_resource=self.prometheus_image,
-                spec_is_set=self.state.spec_is_set,
-                external_labels=external_labels,
-            )
+    def on_upgrade_charm_delegator(self, event):
+        pass
 
-            if output.spec:
-                self.adapter.set_pod_spec(output.spec)
-                self.state.spec_is_set = True
-
-            unit_status = output.unit_status
-        except ResourceError as err:
-            unit_status = err.status
-
-        self.adapter.set_unit_status(unit_status)
+    def on_config_changed_delegator(self, event):
+        pass
 
 
 if __name__ == "__main__":

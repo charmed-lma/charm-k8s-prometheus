@@ -6,11 +6,12 @@ from ops.model import BlockedStatus, ModelError
 
 class OCIImageResource(Object):
 
-    def __init__(self, resource_name):
+    def __init__(self, resource_name, resources_repo):
         self.resource_name = resource_name
+        self.resources_repo = resources_repo
 
-    def fetch(self, resources_adapter):
-        path = resources_adapter.fetch(self.resource_name)
+    def fetch(self):
+        path = self.resources_repo.fetch(self.resource_name)
         if not path.exists():
             raise ResourceError(
                 self.resource_name,
@@ -48,8 +49,9 @@ class OCIImageResource(Object):
 
 class PrometheusImageResource(OCIImageResource):
 
-    def __init__(self):
-        super().__init__(resource_name='prometheus-image')
+    def __init__(self, resources_repo):
+        super().__init__(resource_name='prometheus-image',
+                         resoures_repo=resources_repo)
 
 
 class ResourceError(ModelError):

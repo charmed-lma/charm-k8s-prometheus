@@ -10,12 +10,11 @@ from ops.model import (
 )
 
 
-def generate_spec(event,
-                  app_name,
-                  advertised_port,
-                  image_resource,
-                  spec_is_set,
-                  external_labels={}):
+def on_start(event,
+             app_name,
+             config,
+             image_resource,
+             spec_is_set):
     """Generates the k8s spec needed to deploy Prometheus on k8s
 
     :param: :class:`ops.framework.EventBase` event: The event that triggered
@@ -23,29 +22,18 @@ def generate_spec(event,
 
     :param str app_name: The name of the application.
 
-    :param int advertised_port: The port inside the container that prometheus
-        should bind to.
+    :param dict config: Key-value pairs derived from config options declared
+        in config.yaml
 
-    :param OCIImageResource image_resource: Image metadata object containing
-        the registry path, username, and password. May be set to None if no
-        image metadata is available.
+    :param OCIImageResource image_resource: Image resource object containing
+        the registry path, username, and password.
 
     :param bool spec_is_set: Indicates whether the spec has been previously
         set by Juju or not.
 
-    :param dict external_labels: The labels to attach to metrics in this
-        Prometheus instance before they get pulled by an aggregating parent.
-        This is useful in the case of federation where you want each datacenter
-        to have its own Prometheus instance and then have a global instance
-        that pull from each of these "children" instances. By specifying a
-        unique set of external_labels for each child instance, you can easily
-        determine in the aggregating Prometheus instance which datacenter a
-        metric is coming from.
-
-
     :returns: An object containing the spec dict and other attributes.
 
-    :rtype: :class:`handlers.SpecGenerationOutput`
+    :rtype: :class:`handlers.OnStartHandlerOutput`
 
     """
     if spec_is_set:

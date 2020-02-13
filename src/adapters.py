@@ -12,8 +12,11 @@ class FrameworkAdapter:
     def get_app_name(self):
         return self._framework.model.app.name
 
-    def get_config(self, key):
-        return self._framework.model.config[key]
+    def get_config(self, key=None):
+        if key:
+            return self._framework.model.config[key]
+        else:
+            return self._framework.model.config
 
     def get_resources_repo(self):
         return self._framework.model.resources

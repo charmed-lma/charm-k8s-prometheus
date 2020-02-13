@@ -51,7 +51,7 @@ class PrometheusImageResource(OCIImageResource):
 
     def __init__(self, resources_repo):
         super().__init__(resource_name='prometheus-image',
-                         resoures_repo=resources_repo)
+                         resources_repo=resources_repo)
 
 
 class ResourceError(ModelError):

@@ -63,54 +63,42 @@ def on_start(event,
         external_labels = json.loads(config['external-labels'])
         advertised_port = config['advertised-port']
 
-        prometheus_yaml = yaml.dump({
-            'global': {
-                'scrape_interval': '15s',
-                'external_labels': external_labels
-            },
-            'scrape_configs': [
-                {
-                    'job_name': 'prometheus',
-                    'scrape_interval': '5s',
-                    'static_configs': [
-                        {
-                            'targets': [
-                                f'localhost:{advertised_port}'
-                            ]
-                        }
-                    ]
-                }
-            ]
-        })
-
         output = dict(
             unit_status=MaintenanceStatus("Configuring pod"),
             spec={
-                'containers': [
-                    {
-                        'name': app_name,
-                        'imageDetails': {
-                            'imagePath': image_resource.image_path,
-                            'username': image_resource.username,
-                            'password': image_resource.password
-                        },
-                        'ports': [
-                            {
-                                'containerPort': advertised_port,
-                                'protocol': 'TCP'
-                            }
-                        ],
-                        'files': [
-                            {
-                                'name': 'config',
-                                'mountPath': '/etc/prometheus',
-                                'files': {
-                                    'prometheus.yml': prometheus_yaml
-                                }
-                            }
-                        ]
-                    }
-                ]
+                'containers': [{
+                    'name': app_name,
+                    'imageDetails': {
+                        'imagePath': image_resource.image_path,
+                        'username': image_resource.username,
+                        'password': image_resource.password
+                    },
+                    'ports': [{
+                        'containerPort': advertised_port,
+                        'protocol': 'TCP'
+                    }],
+                    'files': [{
+                        'name': 'config',
+                        'mountPath': '/etc/prometheus',
+                        'files': {
+                            'prometheus.yml': yaml.dump({
+                                'global': {
+                                    'scrape_interval': '15s',
+                                    'external_labels': external_labels
+                                },
+                                'scrape_configs': [{
+                                    'job_name': 'prometheus',
+                                    'scrape_interval': '5s',
+                                    'static_configs': [{
+                                        'targets': [
+                                            f'localhost:{advertised_port}'
+                                        ]
+                                    }]
+                                }]
+                            })
+                        }
+                    }]
+                }]
             }
         )
 

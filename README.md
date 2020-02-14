@@ -37,6 +37,31 @@ juju add-model prometheus
 juju deploy . --resource prometheus-image=prom/prometheus:latest
 ```
 
+Wait until `juju status` shows that the charm-k8s-prometheus app has
+a status of active.
+
+
+Preview the Prometheus GUI
+--------------------------
+
+Run:
+
+    kubectl -n prometheus port-forward svc/charm-k8s-prometus 9090:9090
+
+The above assumes you're using the default value for `advertised-port`. If
+you customized this value from 9090 to some other value, change the command
+above accordingly.
+
+Now browse to http://localhost:9090/
+
+The default prometheus.yml config includes a scrape config that scrapes metrics
+from Prometheus itself. Execute the following query to show TSDB stats:
+
+    rate(prometheus_tsdb_head_chunks_created_total[1m])
+
+For more info on getting started with Prometheus see [its official getting
+started guide](https://prometheus.io/docs/prometheus/latest/getting_started/).
+
 
 Running the Unit Tests on Your Workstation
 ------------------------------------------

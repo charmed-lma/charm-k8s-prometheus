@@ -77,6 +77,22 @@ def on_start(event,
                         'containerPort': advertised_port,
                         'protocol': 'TCP'
                     }],
+                    'readinessProbe': {
+                        'httpGet': {
+                            'path': '/-/ready',
+                            'port': advertised_port
+                        },
+                        'initialDelaySeconds': 10,
+                        'timeoutSeconds': 30
+                    },
+                    'livenessProbe': {
+                        'httpGet': {
+                            'path': '/-/healthy',
+                            'port': advertised_port
+                        },
+                        'initialDelaySeconds': 30,
+                        'timeoutSeconds': 30
+                    },
                     'files': [{
                         'name': 'config',
                         'mountPath': '/etc/prometheus',

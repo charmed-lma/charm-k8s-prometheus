@@ -43,10 +43,6 @@ class Charm(CharmBase):
 
         self.state.set_default(spec_is_set=False)
 
-    def on_upgrade_delegator(self, event):
-        self.state.spec_is_set = False
-        self.on_start_delegator(event)
-
     def on_start_delegator(self, event):
         output = handlers.on_start(
             event=event,
@@ -61,6 +57,10 @@ class Charm(CharmBase):
             self.state.spec_is_set = True
 
         self.adapter.set_unit_status(output.unit_status)
+
+    def on_upgrade_delegator(self, event):
+        self.state.spec_is_set = False
+        self.on_start_delegator(event)
 
 
 if __name__ == "__main__":

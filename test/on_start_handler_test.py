@@ -15,12 +15,16 @@ from ops.framework import (
 )
 from ops.model import (
     ActiveStatus,
+    BlockedStatus,
     MaintenanceStatus,
 )
 
 sys.path.append('src')
 import handlers
-from resources import OCIImageResource
+from resources import (
+    ResourceError,
+    OCIImageResource,
+)
 
 
 class GenerateSpecHandlerTest(unittest.TestCase):
@@ -137,5 +141,43 @@ class GenerateSpecHandlerTest(unittest.TestCase):
         assert mock_image_resource.fetch.call_count == 0
 
         assert type(output.unit_status) == ActiveStatus
+
+        assert output.spec is None
+
+    def test_ResourceError_is_caught_and_handled_properly(self):
+        # Set up
+        mock_event = create_autospec(EventBase)
+
+        mock_app_name = f'{uuid4()}'
+
+        mock_advertised_port = random.randint(1, 65535)
+        mock_external_labels = {
+            f"{uuid4()}": f"{uuid4()}",
+            f"{uuid4()}": f"{uuid4()}",
+            f"{uuid4()}": f"{uuid4()}",
+        }
+
+        mock_config = {
+            'advertised-port': mock_advertised_port,
+            'external-labels': json.dumps(mock_external_labels)
+        }
+
+        mock_resource_error = ResourceError(f'{uuid4()}', f'{uuid4()}')
+        mock_image_resource = create_autospec(OCIImageResource, spec_set=True)
+        mock_image_resource.fetch.side_effect = mock_resource_error
+
+        # Exercise
+        output = handlers.on_start(
+            event=mock_event,
+            app_name=mock_app_name,
+            config=mock_config,
+            image_resource=mock_image_resource,
+            spec_is_set=False)
+
+        # Assertions
+        assert mock_image_resource.fetch.call_count == 1
+
+        assert type(output.unit_status) == BlockedStatus
+        assert output.unit_status == mock_resource_error.status
 
         assert output.spec is None

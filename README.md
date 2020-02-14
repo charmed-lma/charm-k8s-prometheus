@@ -23,13 +23,14 @@ sudo microk8s.enable dns dashboard registry storage
 sudo usermod -a -G microk8s ubuntu
 ```
 
-Log out then log back in to apply the group membership
+Log out then log back so that the new group membership is applied to
+your shell session.
 
 ```
 juju bootstrap microk8s mk8s
 ```
 
-Optional: Grab coffee/beer/tea or do a 5k run
+Optional: Grab coffee/beer/tea or do a 5k run. Once the above is done, do:
 
 ```
 juju create-storage-pool operator-storage kubernetes storage-class=microk8s-hostpath
@@ -54,7 +55,7 @@ above accordingly.
 
 Now browse to http://localhost:9090/
 
-The default prometheus.yml config includes a scrape config that scrapes metrics
+The default prometheus.yml includes a configuration that scrapes metrics
 from Prometheus itself. Execute the following query to show TSDB stats:
 
     rate(prometheus_tsdb_head_chunks_created_total[1m])
@@ -86,8 +87,8 @@ first get the Ubuntu VM's IP via `multipass list` and then browse to that IP and
 the abovementioned port.
 
 NOTE: You can leave that static server running in one session while you continue
-to execute `tox` on another session. That server will pick up any new changes to the report
-automatically so you don't have to restart it each time.
+to execute `tox` on another session. That server will pick up any new changes to
+the report automatically so you don't have to restart it each time.
 
 
 Relying on More Comprehensive Unit Tests
@@ -95,7 +96,7 @@ Relying on More Comprehensive Unit Tests
 
 To ensure that this charm is tested on the widest number of platforms possible,
 we make use of Travis CI which also automatically reports the coverage report
-to a publicly available Coverall.io page. To get a view of what the state of
+to a publicly available Coveralls.io page. To get a view of what the state of
 each relevant branch is, click on the appropriate badges found at the top of
 this README.
 

@@ -77,6 +77,22 @@ class GenerateSpecHandlerTest(unittest.TestCase):
                 'containerPort': mock_config['advertised-port'],
                 'protocol': 'TCP'
             }],
+            'readinessProbe': {
+                'httpGet': {
+                    'path': '/-/ready',
+                    'port': mock_config['advertised-port']
+                },
+                'initialDelaySeconds': 10,
+                'timeoutSeconds': 30
+            },
+            'livenessProbe': {
+                'httpGet': {
+                    'path': '/-/healthy',
+                    'port': mock_config['advertised-port']
+                },
+                'initialDelaySeconds': 30,
+                'timeoutSeconds': 30
+            },
             'files': [{
                 'name': 'config',
                 'mountPath': '/etc/prometheus',

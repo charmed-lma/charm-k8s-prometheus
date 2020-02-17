@@ -3,9 +3,14 @@
 import sys
 sys.path.append('lib')
 
-from ops.charm import CharmBase
+from ops.charm import (
+    CharmBase,
+)
 from ops.framework import StoredState
 from ops.main import main
+from ops.model import (
+    ActiveStatus,
+)
 
 from adapters import FrameworkAdapter
 from resources import (
@@ -31,8 +36,8 @@ class Charm(CharmBase):
         # Bind event handlers to events
         event_handler_bindings = {
             self.on.start: self.on_start_delegator,
-            self.on.config_changed: self.on_start_delegator,
-            self.on.upgrade_charm: self.on_upgrade_delegator
+            self.on.config_changed: self.on_config_changed_delegator,
+            self.on.upgrade_charm: self.on_upgrade_delegator,
         }
         for event, handler in event_handler_bindings.items():
             self.adapter.observe(event, handler)
@@ -42,6 +47,18 @@ class Charm(CharmBase):
         )
 
         self.state.set_default(spec_is_set=False)
+
+    def on_config_changed_delegator(self, event):
+        unit_status = None
+
+        while not isinstance(unit_status, ActiveStatus):
+            output = handlers.on_config_changed(
+                event=event,
+                app_name=self.adapter.get_app_name()
+            )
+
+            unit_status = output.unit_status
+            self.adapter.set_unit_status(unit_status)
 
     def on_start_delegator(self, event):
         output = handlers.on_start(

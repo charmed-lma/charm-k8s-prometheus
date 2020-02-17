@@ -1,4 +1,7 @@
 import json
+import http.client
+import os
+import ssl
 from types import SimpleNamespace
 import yaml
 
@@ -16,6 +19,67 @@ from resources import (
 
 def _create_output_obj(dict_obj):
     return SimpleNamespace(**dict_obj)
+
+
+def on_config_changed(event, app_name):
+    with open("/var/run/secrets/kubernetes.io/serviceaccount/token") \
+            as token_file:
+        kube_token = token_file.read()
+
+    ssl_context = ssl.SSLContext()
+    ssl_context.load_verify_locations(
+        '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
+
+    headers = {
+        'Authorization': f'Bearer {kube_token}'
+    }
+
+    namespace = os.environ["JUJU_MODEL_NAME"]
+
+    path = f'/api/v1/namespaces/{namespace}/pods?' \
+           f'labelSelector=juju-app={app_name}'
+
+    conn = http.client.HTTPSConnection('kubernetes.default.svc',
+                                       context=ssl_context)
+    conn.request(method='GET', url=path, headers=headers)
+
+    try:
+        response = json.loads(conn.getresponse().read())
+    except Exception:
+        response = {}
+
+    if response.get('kind', '') == 'PodList' and response['items']:
+        unit = os.environ['JUJU_UNIT_NAME']
+        unit_pod = next(
+            (item for item in response['items']
+             if item['metadata']['annotations'].get('juju.io/unit') == unit),
+            None
+        )
+
+        if unit_pod:
+            is_ready = next(
+                (
+                    condition['status'] == "True" for condition
+                    in unit_pod['status']['conditions']
+                    if condition['type'] == 'ContainersReady'
+                ),
+                False
+            )
+            is_running = unit_pod['status']['phase'] == 'Running'
+            if is_running and is_ready:
+                unit_status = ActiveStatus()
+            elif is_running and not is_ready:
+                unit_status = MaintenanceStatus("Pod is getting ready")
+            else:
+                unit_status = MaintenanceStatus("Pod is starting")
+        else:
+            unit_status = MaintenanceStatus("Waiting to get pod status")
+    else:
+        unit_status = MaintenanceStatus("Waiting to get list of pods")
+
+    return SimpleNamespace(**dict(
+        unit_status=unit_status
+    ))
 
 
 def on_start(event,

@@ -20,10 +20,10 @@ git submodule update --init --recursive
 sudo snap install juju --classic
 sudo snap install microk8s --classic
 sudo microk8s.enable dns dashboard registry storage
-sudo usermod -a -G microk8s ubuntu
+sudo usermod -a -G microk8s $(whoami)
 ```
 
-Log out then log back so that the new group membership is applied to
+Log out then log back in so that the new group membership is applied to
 your shell session.
 
 ```

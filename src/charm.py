@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import sys
 sys.path.append('lib')
 
@@ -8,9 +7,6 @@ from ops.charm import (
 )
 from ops.framework import StoredState
 from ops.main import main
-from ops.model import (
-    ActiveStatus,
-)
 
 from adapters import FrameworkAdapter
 from resources import (
@@ -48,17 +44,8 @@ class Charm(CharmBase):
 
         self.state.set_default(spec_is_set=False)
 
-    def on_config_changed_delegator(self, event):
-        unit_status = None
-
-        while not isinstance(unit_status, ActiveStatus):
-            output = handlers.on_config_changed(
-                event=event,
-                app_name=self.adapter.get_app_name()
-            )
-
-            unit_status = output.unit_status
-            self.adapter.set_unit_status(unit_status)
+    # def on_config_changed_delegator(self, event):
+    #     self.on.update_status.emit()
 
     def on_start_delegator(self, event):
         output = handlers.on_start(
@@ -74,6 +61,17 @@ class Charm(CharmBase):
             self.state.spec_is_set = True
 
         self.adapter.set_unit_status(output.unit_status)
+
+    def on_config_changed_delegator(self, event):
+        pod_is_ready = False
+
+        while not pod_is_ready:
+            output = handlers.on_config_changed(
+                event=event,
+                app_name=self.adapter.get_app_name()
+            )
+            self.adapter.set_unit_status(output.unit_status)
+            pod_is_ready = output.pod_is_ready
 
     def on_upgrade_delegator(self, event):
         self.state.spec_is_set = False

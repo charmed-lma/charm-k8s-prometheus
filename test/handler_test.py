@@ -27,7 +27,7 @@ from resources import (
 )
 
 
-class GenerateSpecHandlerTest(unittest.TestCase):
+class OnStartHandlerTest(unittest.TestCase):
 
     def test_pod_spec_is_generated(self):
         # Set up
@@ -197,3 +197,9 @@ class GenerateSpecHandlerTest(unittest.TestCase):
         assert output.unit_status == mock_resource_error.status
 
         assert output.spec is None
+
+
+class OnConfigChangedHandler(unittest.TestCase):
+
+    def test_returns_maintenance_status_if_pod_is_not_ready(self):
+        assert True

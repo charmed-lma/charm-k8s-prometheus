@@ -44,9 +44,6 @@ class Charm(CharmBase):
 
         self.state.set_default(spec_is_set=False)
 
-    # def on_config_changed_delegator(self, event):
-    #     self.on.update_status.emit()
-
     def on_start_delegator(self, event):
         output = handlers.on_start(
             event=event,

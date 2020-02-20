@@ -22,7 +22,7 @@ class APIServerTest(unittest.TestCase):
     @patch('k8s.open', create=True)
     @patch('k8s.ssl.SSLContext', autospec=True, spec_set=True)
     @patch('k8s.http.client.HTTPSConnection', autospec=True, spec_set=True)
-    def test_request_loads_json_string_successfully(
+    def test_get_loads_json_string_successfully(
             self,
             mock_https_connection_cls,
             mock_ssl_context_cls,
@@ -39,7 +39,7 @@ class APIServerTest(unittest.TestCase):
 
         # Exercise
         api_server = APIServer()
-        response = api_server.request('GET', '/some/path')
+        response = api_server.get('/some/path')
 
         # Assert
         assert response == mock_response_dict

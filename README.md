@@ -1,5 +1,5 @@
-Juju Charm for Prometheus on Kubernetes
-=======================================
+Juju Charm/Operator for Prometheus on Kubernetes
+================================================
 
 CI Badges
 ---------
@@ -11,8 +11,8 @@ Click on each badge for more details.
 | master | [![Build Status (master)](https://travis-ci.org/relaxdiego/charm-k8s-prometheus.svg?branch=master)](https://travis-ci.org/relaxdiego/charm-k8s-prometheus) | [![Coverage Status](https://coveralls.io/repos/github/relaxdiego/charm-k8s-prometheus/badge.svg?branch=master)](https://coveralls.io/github/relaxdiego/charm-k8s-prometheus?branch=master) |
 
 
-Quick-ish Start
----------------
+Quick Start
+-----------
 
 
 ```
@@ -34,7 +34,7 @@ Optional: Grab coffee/beer/tea or do a 5k run. Once the above is done, do:
 
 ```
 juju create-storage-pool operator-storage kubernetes storage-class=microk8s-hostpath
-juju add-model prometheus
+juju add-model lma
 juju deploy . --resource prometheus-image=prom/prometheus:latest
 ```
 

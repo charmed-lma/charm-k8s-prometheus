@@ -1,7 +1,4 @@
 import json
-import http.client
-import os
-import ssl
 from types import SimpleNamespace
 import yaml
 
@@ -11,6 +8,9 @@ sys.path.append('lib')
 from ops.model import (
     ActiveStatus,
     MaintenanceStatus,
+)
+from k8s import (
+    PodStatus,
 )
 from resources import (
     ResourceError,
@@ -122,77 +122,6 @@ def on_start(event,
         )
 
         return _create_output_obj(output)
-
-
-class PodStatus:
-
-    def __init__(self, app_name):
-        self._token_file = \
-            "/var/run/secrets/kubernetes.io/serviceaccount/token"
-        self._app_name = app_name
-        self._status = None
-
-    def fetch(self):
-        with open(self._token_file) \
-                as token_file:
-            kube_token = token_file.read()
-
-        ssl_context = ssl.SSLContext()
-        ssl_context.load_verify_locations(
-            '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
-
-        headers = {
-            'Authorization': f'Bearer {kube_token}'
-        }
-
-        namespace = os.environ["JUJU_MODEL_NAME"]
-
-        path = f'/api/v1/namespaces/{namespace}/pods?' \
-               f'labelSelector=juju-app={self._app_name}'
-
-        conn = http.client.HTTPSConnection('kubernetes.default.svc',
-                                           context=ssl_context)
-        conn.request(method='GET', url=path, headers=headers)
-
-        try:
-            response = json.loads(conn.getresponse().read())
-        except Exception:
-            response = {}
-
-        if response.get('kind', '') == 'PodList' and response['items']:
-            unit = os.environ['JUJU_UNIT_NAME']
-            status = next(
-                (i for i in response['items']
-                 if i['metadata']['annotations'].get('juju.io/unit') == unit),
-                None
-            )
-
-        self._status = status
-
-    @property
-    def is_ready(self):
-        if not self._status:
-            return False
-
-        return next(
-            (
-                condition['status'] == "True" for condition
-                in self._status['status']['conditions']
-                if condition['type'] == 'ContainersReady'
-            ),
-            False
-        )
-
-    @property
-    def is_running(self):
-        if not self._status:
-            return False
-
-        return self._status['status']['phase'] == 'Running'
-
-    @property
-    def is_unknown(self):
-        return not self._status
 
 
 def on_config_changed(event, app_name):

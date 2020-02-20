@@ -5,7 +5,6 @@ sys.path.append('lib')
 from ops.charm import (
     CharmBase,
 )
-from ops.framework import StoredState
 from ops.main import main
 
 from adapters import FrameworkAdapter
@@ -16,9 +15,6 @@ import handlers
 
 
 class Charm(CharmBase):
-
-    # Initialize the object's stored state
-    state = StoredState()
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -42,21 +38,14 @@ class Charm(CharmBase):
             resources_repo=self.adapter.get_resources_repo()
         )
 
-        self.state.set_default(spec_is_set=False)
-
     def on_start_delegator(self, event):
         output = handlers.on_start(
             event=event,
             app_name=self.adapter.get_app_name(),
             config=self.adapter.get_config(),
             image_resource=self.prometheus_image,
-            spec_is_set=self.state.spec_is_set
         )
-
-        if output.spec:
-            self.adapter.set_pod_spec(output.spec)
-            self.state.spec_is_set = True
-
+        self.adapter.set_pod_spec(output.spec)
         self.adapter.set_unit_status(output.unit_status)
 
     def on_config_changed_delegator(self, event):
@@ -71,7 +60,6 @@ class Charm(CharmBase):
             pod_is_ready = output.pod_is_ready
 
     def on_upgrade_delegator(self, event):
-        self.state.spec_is_set = False
         self.on_start_delegator(event)
 
 

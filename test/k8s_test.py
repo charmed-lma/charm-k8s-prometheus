@@ -1,3 +1,5 @@
+import io
+import json
 import sys
 import unittest
 from unittest.mock import (
@@ -10,8 +12,37 @@ from uuid import (
 
 sys.path.append('src')
 from k8s import (
+    APIServer,
     PodStatus,
 )
+
+
+class APIServerTest(unittest.TestCase):
+
+    @patch('k8s.open', create=True)
+    @patch('k8s.ssl.SSLContext', autospec=True, spec_set=True)
+    @patch('k8s.http.client.HTTPSConnection', autospec=True, spec_set=True)
+    def test_request_loads_json_string_successfully(
+            self,
+            mock_https_connection_cls,
+            mock_ssl_context_cls,
+            mock_open):
+        # Setup
+        mock_token = f'{uuid4()}'
+        mock_token_file = io.StringIO(mock_token)
+        mock_open.return_value = mock_token_file
+        mock_response_dict = {}
+        mock_response_json = io.StringIO(json.dumps(mock_response_dict))
+
+        mock_conn = mock_https_connection_cls.return_value
+        mock_conn.getresponse.return_value = mock_response_json
+
+        # Exercise
+        api_server = APIServer()
+        response = api_server.request('GET', '/some/path')
+
+        # Assert
+        assert response == mock_response_dict
 
 
 class PodStatusTest(unittest.TestCase):

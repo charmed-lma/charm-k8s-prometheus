@@ -23,6 +23,10 @@ sys.path.append('src')
 from charm import (
     Charm
 )
+from http_interface import (
+    HTTPClientInterface,
+    NewHTTPClientEvent,
+)
 
 
 class CharmTest(unittest.TestCase):
@@ -41,6 +45,31 @@ class CharmTest(unittest.TestCase):
         self.addCleanup(framework.close)
 
         return framework
+
+    @patch('charm.handlers.on_new_http_client', spec_set=True, autospec=True)
+    @patch('charm.HTTPServerInterface', spec_set=True, autospec=True)
+    @patch('charm.FrameworkAdapter', spec_set=True, autospec=True)
+    def test__http_server_on_new_client__it_sends_its_endpoint_to_the_client(
+            self,
+            mock_framework_adapter_cls,
+            mock_http_server_interface_cls,
+            mock_on_new_http_client_handler):
+        # Setup
+        mock_event = create_autospec(NewHTTPClientEvent,
+                                     spec_set=True)
+        mock_event.client = create_autospec(HTTPClientInterface,
+                                            spec_set=True)
+        mock_adapter = mock_framework_adapter_cls.return_value
+
+        # Exercise
+        charm_obj = Charm(self.create_framework(), None)
+        charm_obj.on_new_http_client_delegator(mock_event)
+
+        # Assert
+        assert mock_on_new_http_client_handler.call_count == 1
+        assert mock_on_new_http_client_handler.call_args == \
+            call(client=mock_event.client,
+                 app_name=mock_adapter.get_app_name.return_value)
 
     @patch('charm.handlers.on_config_changed', spec_set=True, autospec=True)
     @patch('charm.FrameworkAdapter', spec_set=True, autospec=True)

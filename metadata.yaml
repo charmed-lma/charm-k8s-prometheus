@@ -10,9 +10,9 @@ tags:
     - "application"
 series:
     - "kubernetes"
-# provides:
-#     prometheus:
-#         interface: prometheus
+provides:
+    http-server:
+        interface: http-server
 resources:
     prometheus-image:
         type: oci-image

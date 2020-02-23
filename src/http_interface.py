@@ -9,11 +9,7 @@ from ops.framework import (
 )
 
 
-#
-# EVENTS
-#
-
-class NewHTTPClientEvent(EventBase):
+class NewClientEvent(EventBase):
 
     def __init__(self, handle, client):
         super().__init__(handle)
@@ -23,22 +19,28 @@ class NewHTTPClientEvent(EventBase):
         return self._client
 
 
-class HTTPServerAvailableEvent(EventBase):
+class ServerAvailableEvent(EventBase):
     pass
 
 
-class HTTPServerEvents(EventsBase):
-    new_client = EventSource(NewHTTPClientEvent)
-    server_available = EventSource(HTTPServerAvailableEvent)
+class ServerEvents(EventsBase):
+    new_client = EventSource(NewClientEvent)
+    server_available = EventSource(ServerAvailableEvent)
 
 
-#
-# INTERFACES
-#
+class Server(Object):
+    on = ServerEvents()
 
-class HTTPClientInterface:
+    def __init__(self, charm, relation_name):
+        super().__init__(charm, relation_name)
 
-    def set_http_server(self, host, port):
+    def on_joined(self, event):
+        self.on.new_client.emit(Client())
+
+
+class Client:
+
+    def set_server_address(self, host, port):
         self._server_host = host
         self._server_port = port
 
@@ -49,13 +51,3 @@ class HTTPClientInterface:
     @property
     def server_port(self):
         return self._server_port
-
-
-class HTTPServerInterface(Object):
-    on = HTTPServerEvents()
-
-    def __init__(self, charm, relation_name):
-        super().__init__(charm, relation_name)
-
-    def on_joined(self, event):
-        self.on.new_client.emit(HTTPClientInterface())

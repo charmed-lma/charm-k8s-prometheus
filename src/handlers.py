@@ -23,11 +23,13 @@ def _create_output_obj(dict_obj):
 
 
 def on_new_http_client(client, app_name):
-    """Configures an HTTPClientInterface object designated by `client` with
+    """Configures an `http_interface.Client` object designated by `client` with
     the hostname and port of the HTTP server's k8s Service object.
 
-    :param: :class:`http_interface.HTTPClientInterface` client: The interface
-        object to be configured by this handler.
+    :param: :class:`http_interface.Client` client: the object that will be
+        configured by this handler with details about the server. It will
+        eventually make its way to the actual client which will use the
+        information to configure itself.
 
     :param str app_name: The name of the server application. This will be used
         by this handler to obtain the Service specs of the server.
@@ -36,7 +38,7 @@ def on_new_http_client(client, app_name):
     service_spec = ServiceSpec(app_name)
     service_spec.fetch()
 
-    client.set_http_server(host=service_spec.host, port=service_spec.port)
+    client.set_server_address(host=service_spec.host, port=service_spec.port)
 
 
 def on_start(event,

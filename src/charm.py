@@ -9,7 +9,7 @@ from ops.main import main
 
 from adapters import FrameworkAdapter
 import handlers
-from http_interface import HTTPServerInterface
+import http_interface
 from resources import (
     PrometheusImageResource,
 )
@@ -20,7 +20,7 @@ class Charm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
 
-        self.http_server = HTTPServerInterface(self, 'http-server')
+        self.http_server = http_interface.Server(self, 'http-server')
 
         # Abstract out framework and friends so that this object is not
         # too tightly coupled with the underlying framework's implementation.

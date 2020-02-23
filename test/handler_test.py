@@ -26,9 +26,7 @@ from resources import (
     ResourceError,
     OCIImageResource,
 )
-from http_interface import (
-    HTTPClientInterface,
-)
+import http_interface
 
 
 class OnNewHTTPClientTest(unittest.TestCase):
@@ -38,7 +36,7 @@ class OnNewHTTPClientTest(unittest.TestCase):
             self,
             mock_svc_spec_cls):
         # Set up
-        mock_client = create_autospec(HTTPClientInterface, spec_set=True)
+        mock_client = create_autospec(http_interface.Client, spec_set=True)
         mock_app_name = f'{uuid4()}'
 
         mock_svc_spec = mock_svc_spec_cls.return_value
@@ -52,8 +50,8 @@ class OnNewHTTPClientTest(unittest.TestCase):
 
         assert mock_svc_spec.fetch.call_count == 1
 
-        assert mock_client.set_http_server.call_count == 1
-        assert mock_client.set_http_server.call_args == \
+        assert mock_client.set_server_address.call_count == 1
+        assert mock_client.set_server_address.call_args == \
             call(host=mock_svc_spec.host, port=mock_svc_spec.port)
 
 

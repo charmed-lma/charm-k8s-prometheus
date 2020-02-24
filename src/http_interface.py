@@ -9,6 +9,10 @@ from ops.framework import (
 )
 
 
+#
+# Server
+#
+
 class NewClientEvent(EventBase):
 
     def __init__(self, handle, client):
@@ -40,17 +44,32 @@ class Server(Object):
     def on_joined(self, event):
         self.on.new_client.emit(Client())
 
+#
+# Client
+#
 
-class Client:
+class ServerAvailableEvent(EventBase):
+    pass
 
-    def set_server_address(self, host, port):
-        self._server_host = host
-        self._server_port = port
+
+class ClientEvents(EventsBase):
+    server_available = EventSource(ServerAvailableEvent)
+
+
+class Client(Object):
+    on = ClientEvents()
+
+    def __init__(self, charm, relation_name):
+        super().__init__(charm, relation_name)
+
+        self._relation_name = relation_name
+
+        self.framework.observe(charm.on[relation_name].relation_changed,
+                               self.on_relation_changed)
 
     @property
-    def server_host(self):
-        return self._server_host
+    def relation_name(self):
+        return self._relation_name
 
-    @property
-    def server_port(self):
-        return self._server_port
+    def on_relation_changed(self, event):
+        pass

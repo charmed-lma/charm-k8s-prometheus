@@ -34,6 +34,9 @@ class Server(Object):
     def __init__(self, charm, relation_name):
         super().__init__(charm, relation_name)
 
+        self.framework.observe(charm.on[relation_name].relation_joined,
+                               self.on_joined)
+
     def on_joined(self, event):
         self.on.new_client.emit(Client())
 

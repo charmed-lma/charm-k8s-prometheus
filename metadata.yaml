@@ -11,8 +11,8 @@ tags:
 series:
     - "kubernetes"
 provides:
-    http-server:
-        interface: http-server
+    http-api:
+        interface: prometheus-http-api
 resources:
     prometheus-image:
         type: oci-image

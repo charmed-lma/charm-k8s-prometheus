@@ -20,7 +20,7 @@ class Charm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
 
-        self.http_server = http_interface.Server(self, 'http-server')
+        self.http_api = http_interface.Server(self, 'http-api')
 
         # Abstract out framework and friends so that this object is not
         # too tightly coupled with the underlying framework's implementation.
@@ -33,7 +33,7 @@ class Charm(CharmBase):
             self.on.start: self.on_start_delegator,
             self.on.config_changed: self.on_config_changed_delegator,
             self.on.upgrade_charm: self.on_upgrade_delegator,
-            self.http_server.on.new_client: self.on_new_http_client_delegator
+            self.http_api.on.new_client: self.on_new_http_client_delegator
         }
         for event, handler in event_handler_bindings.items():
             self.adapter.observe(event, handler)
@@ -68,10 +68,15 @@ class Charm(CharmBase):
         # of this event, we're doing it anyway because we want to keep the
         # language" and level of abstraction in this class consistent and,
         # therefore, easier to maintain and reason about.
-        handlers.on_new_http_client(
-            client=event.client,
+        output = handlers.on_new_http_client(
+            event=event,
             app_name=self.adapter.get_app_name()
         )
+
+        # event.server_details.set_address(
+        #     host=output.server_details.host,
+        #     port=output.server_details.port,
+        # )
 
     def on_upgrade_delegator(self, event):
         self.on_start_delegator(event)

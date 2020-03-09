@@ -26,33 +26,6 @@ from resources import (
     ResourceError,
     OCIImageResource,
 )
-import http_interface
-
-
-class OnNewHTTPClientTest(unittest.TestCase):
-
-    @patch('handlers.ServiceSpec', autospec=True, spec_set=True)
-    def test_client_is_configured_properly(
-            self,
-            mock_svc_spec_cls):
-        # Set up
-        mock_client = create_autospec(http_interface.Client, spec_set=True)
-        mock_app_name = f'{uuid4()}'
-
-        mock_svc_spec = mock_svc_spec_cls.return_value
-
-        # Exercise
-        handlers.on_new_http_client(mock_client, mock_app_name)
-
-        # Assertions
-        assert mock_svc_spec_cls.call_count == 1
-        assert mock_svc_spec_cls.call_args == call(mock_app_name)
-
-        assert mock_svc_spec.fetch.call_count == 1
-
-        assert mock_client.set_server_address.call_count == 1
-        assert mock_client.set_server_address.call_args == \
-            call(host=mock_svc_spec.host, port=mock_svc_spec.port)
 
 
 class OnStartHandlerTest(unittest.TestCase):

@@ -10,7 +10,6 @@ from ops.model import (
     MaintenanceStatus,
 )
 from k8s import (
-    ServiceSpec,
     PodStatus,
 )
 from resources import (
@@ -20,34 +19,6 @@ from resources import (
 
 def _create_output_obj(dict_obj):
     return SimpleNamespace(**dict_obj)
-
-
-def on_new_http_client(event, app_name):
-    """Configures an `http_interface.ServerDetails` object designated by
-    `server_details` with the hostname and port of the HTTP server's k8s
-    Service object.
-
-    :param: :class:`http_interface.ServerDetails` server_details: the object
-        that will be configured by this handler with details about the server.
-        It will eventually make its way to the actual client which will use the
-        information to configure itself.
-
-    :param str app_name: The name of the server application. This will be used
-        by this handler to obtain the Service specs of the server.
-
-    """
-    # Fetch the k8s Service resource fronting the server pods
-    service_spec = ServiceSpec(app_name)
-    service_spec.fetch()
-
-    # Use the information from the k8s Service resource to configure the
-    # server_details
-    # server_details.set_address(host=service_spec.host, port=service_spec.port)
-
-    return SimpleNamespace(**dict(
-        this="works",
-        # server_details=server_details
-    ))
 
 
 def on_start(event,

@@ -64,6 +64,13 @@ For more info on getting started with Prometheus see [its official getting
 started guide](https://prometheus.io/docs/prometheus/latest/getting_started/).
 
 
+Use Prometheus as a Grafana Datasource
+--------------------------------------
+
+Refer to the [Grafana Operator](https://github.com/relaxdiego/charm-k8s-grafana)
+Quick Start guide to learn how to use Prometheus with Grafana.
+
+
 Running the Unit Tests on Your Workstation
 ------------------------------------------
 

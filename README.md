@@ -38,8 +38,7 @@ juju add-model lma
 juju deploy . --resource prometheus-image=prom/prometheus:latest
 ```
 
-Wait until `juju status` shows that the charm-k8s-prometheus app has
-a status of active.
+Wait until `juju status` shows that the prometheus app has a status of active.
 
 
 Preview the Prometheus GUI
@@ -47,7 +46,7 @@ Preview the Prometheus GUI
 
 Run:
 
-    kubectl -n prometheus port-forward svc/charm-k8s-prometus 9090:9090
+    kubectl -n prometheus port-forward svc/prometheus 9090:9090
 
 The above assumes you're using the default value for `advertised-port`. If
 you customized this value from 9090 to some other value, change the command

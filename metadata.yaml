@@ -1,6 +1,6 @@
-name: "charm-k8s-prometheus"
-display-name: "k8s-prometheus"
-summary: "Prometheus Charm"
+name: "prometheus"
+display-name: "Prometheus"
+summary: "Prometheus Operator for Kubernetes"
 maintainers:
     - "Mark Maglana <mark.maglana@canonical.com>"
     - "SolutionsQA <solutionsqa@lists.canonical.com>"

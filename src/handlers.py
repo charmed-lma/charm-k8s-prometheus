@@ -21,14 +21,10 @@ def _create_output_obj(dict_obj):
     return SimpleNamespace(**dict_obj)
 
 
-def on_start(event,
-             app_name,
+def on_start(app_name,
              config,
              image_resource):
     """Generates the k8s spec needed to deploy Prometheus on k8s
-
-    :param: :class:`ops.framework.EventBase` event: The event that triggered
-        the calling handler.
 
     :param str app_name: The name of the application.
 
@@ -113,7 +109,7 @@ def on_start(event,
     return _create_output_obj(output)
 
 
-def on_config_changed(event, app_name):
+def on_config_changed(app_name):
 
     pod_status = PodStatus(app_name=app_name)
     pod_status.fetch()

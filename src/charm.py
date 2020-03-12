@@ -40,7 +40,6 @@ class Charm(CharmBase):
 
     def on_start_delegator(self, event):
         output = handlers.on_start(
-            event=event,
             app_name=self.adapter.get_app_name(),
             config=self.adapter.get_config(),
             image_resource=self.prometheus_image,
@@ -53,7 +52,6 @@ class Charm(CharmBase):
 
         while not pod_is_ready:
             output = handlers.on_config_changed(
-                event=event,
                 app_name=self.adapter.get_app_name()
             )
             self.adapter.set_unit_status(output.unit_status)

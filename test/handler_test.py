@@ -11,9 +11,6 @@ from uuid import uuid4
 import yaml
 
 sys.path.append('lib')
-from ops.framework import (
-    EventBase,
-)
 from ops.model import (
     ActiveStatus,
     BlockedStatus,
@@ -32,8 +29,6 @@ class OnStartHandlerTest(unittest.TestCase):
 
     def test_pod_spec_is_generated(self):
         # Set up
-        mock_event = create_autospec(EventBase)
-
         mock_app_name = f'{uuid4()}'
 
         mock_advertised_port = random.randint(1, 65535)
@@ -53,7 +48,6 @@ class OnStartHandlerTest(unittest.TestCase):
 
         # Exercise
         output = handlers.on_start(
-            event=mock_event,
             app_name=mock_app_name,
             config=mock_config,
             image_resource=mock_image_resource)
@@ -122,8 +116,6 @@ class OnStartHandlerTest(unittest.TestCase):
 
     def test_ResourceError_is_caught_and_handled_properly(self):
         # Set up
-        mock_event = create_autospec(EventBase)
-
         mock_app_name = f'{uuid4()}'
 
         mock_advertised_port = random.randint(1, 65535)
@@ -144,7 +136,6 @@ class OnStartHandlerTest(unittest.TestCase):
 
         # Exercise
         output = handlers.on_start(
-            event=mock_event,
             app_name=mock_app_name,
             config=mock_config,
             image_resource=mock_image_resource)
@@ -167,11 +158,10 @@ class OnConfigChangedHandler(unittest.TestCase):
         # Setup
         mock_pod_status = mock_pod_status_cls.return_value
         mock_pod_status.is_unknown = True
-        mock_event = create_autospec(EventBase, spec_set=True)
         app_name = f'{uuid4()}'
 
         # Exercise
-        output = handlers.on_config_changed(mock_event, app_name)
+        output = handlers.on_config_changed(app_name)
 
         # Assertions
         assert mock_pod_status_cls.call_count == 1
@@ -192,11 +182,10 @@ class OnConfigChangedHandler(unittest.TestCase):
         mock_pod_status = mock_pod_status_cls.return_value
         mock_pod_status.is_unknown = False
         mock_pod_status.is_running = False
-        mock_event = create_autospec(EventBase, spec_set=True)
         app_name = f'{uuid4()}'
 
         # Exercise
-        output = handlers.on_config_changed(mock_event, app_name)
+        output = handlers.on_config_changed(app_name)
 
         # Assertions
         assert type(output.unit_status) == MaintenanceStatus
@@ -212,11 +201,10 @@ class OnConfigChangedHandler(unittest.TestCase):
         mock_pod_status.is_unknown = False
         mock_pod_status.is_running = True
         mock_pod_status.is_ready = False
-        mock_event = create_autospec(EventBase, spec_set=True)
         app_name = f'{uuid4()}'
 
         # Exercise
-        output = handlers.on_config_changed(mock_event, app_name)
+        output = handlers.on_config_changed(app_name)
 
         # Assertions
         assert type(output.unit_status) == MaintenanceStatus
@@ -232,11 +220,10 @@ class OnConfigChangedHandler(unittest.TestCase):
         mock_pod_status.is_unknown = False
         mock_pod_status.is_running = True
         mock_pod_status.is_ready = True
-        mock_event = create_autospec(EventBase, spec_set=True)
         app_name = f'{uuid4()}'
 
         # Exercise
-        output = handlers.on_config_changed(mock_event, app_name)
+        output = handlers.on_config_changed(app_name)
 
         # Assertions
         assert type(output.unit_status) == ActiveStatus

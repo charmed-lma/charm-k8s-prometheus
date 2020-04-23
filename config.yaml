@@ -1,6 +1,6 @@
 options:
     advertised-port:
-        description: Prometheus Port
+        description: The port where the Prometheus should listen for requests.
         type: int
         default: 9090
     external-labels:

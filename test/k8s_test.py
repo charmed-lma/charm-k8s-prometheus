@@ -1,10 +1,8 @@
 import io
 import json
-import random
 import sys
 import unittest
 from unittest.mock import (
-    call,
     patch,
 )
 from uuid import (
@@ -16,14 +14,13 @@ import k8s
 from k8s import (
     APIServer,
     PodStatus,
-    ServiceSpec,
 )
 
 
-class k8sFunctionsTest(unittest.TestCase):
+class GetPodStatusTest(unittest.TestCase):
 
     @patch('k8s.APIServer', autospec=True, spec_set=True)
-    def test__get_pod_status__returns_a_PodStatus_obj_if_resource_found(
+    def test__returns_a_PodStatus_obj_if_resource_found(
             self,
             mock_api_server_cls):
         # Setup
@@ -52,7 +49,7 @@ class k8sFunctionsTest(unittest.TestCase):
         assert type(pod_status) == PodStatus
 
     @patch('k8s.APIServer', autospec=True, spec_set=True)
-    def test__get_pod_status__returns_PodStatus_even_if_resource_not_found(
+    def test__returns_PodStatus_even_if_resource_not_found(
             self,
             mock_api_server_cls):
         # Setup
@@ -80,7 +77,7 @@ class APIServerTest(unittest.TestCase):
     @patch('k8s.open', create=True)
     @patch('k8s.ssl.SSLContext', autospec=True, spec_set=True)
     @patch('k8s.http.client.HTTPSConnection', autospec=True, spec_set=True)
-    def test_get_loads_json_string_successfully(
+    def test__get__loads_json_string_successfully(
             self,
             mock_https_connection_cls,
             mock_ssl_context_cls,
@@ -103,77 +100,9 @@ class APIServerTest(unittest.TestCase):
         assert response == mock_response_dict
 
 
-class ServiceSpecTest(unittest.TestCase):
-
-    @patch('k8s.os', autospec=True, spec_set=True)
-    @patch('k8s.APIServer', autospec=True, spec_set=True)
-    def test_fetch_is_succesfull(
-            self,
-            mock_api_server_cls,
-            mock_os):
-        # Setup
-        app_name = f'{uuid4()}'
-        mock_model_name = f'{uuid4()}'
-        mock_os.environ = {
-            'JUJU_MODEL_NAME': mock_model_name,
-        }
-        mock_port = random.randint(1, 65535)
-        mock_cluster_ip = f'{uuid4()}'
-        mock_api_server = mock_api_server_cls.return_value
-        mock_api_server.get.return_value = {
-            "kind": "Service",
-            "apiVersion": "v1",
-            "metadata": {
-                "name": "charm-k8s-prometheus",
-                "namespace": "lma",
-                "uid": "5e5684e0-5870-450e-ab9d-ff840e0b10fb",
-                "resourceVersion": "257015",
-                "creationTimestamp": "2020-02-21T06:40:34Z",
-                "labels": {
-                    "juju-app": "charm-k8s-prometheus"
-                },
-                "annotations": {
-                    "juju.io/model": "d3fb103b-515e-42c8-87f8-5ff26dd7a1e9"
-                }
-            },
-            "spec": {
-                "ports": [
-                    {
-                        "protocol": "TCP",
-                        "port": mock_port,
-                        "targetPort": 9090
-                    }
-                ],
-                "selector": {
-                    "juju-app": "charm-k8s-prometheus"
-                },
-                "clusterIP": f'{mock_cluster_ip}',
-                "type": "ClusterIP",
-                "sessionAffinity": "None"
-            },
-            "status": {
-                "loadBalancer": {
-                }
-            }
-        }
-
-        # Exercise
-        service_spec = ServiceSpec(app_name)
-        service_spec.fetch()
-
-        # Assert
-        assert mock_api_server.get.call_count == 1
-        assert mock_api_server.get.call_args == call(
-            f'/api/v1/namespaces/{mock_model_name}/services/{app_name}'
-        )
-
-        assert service_spec.host == mock_cluster_ip
-        assert service_spec.port == mock_port
-
-
 class PodStatusTest(unittest.TestCase):
 
-    def test__pod_status__pod_is_not_running_yet(self):
+    def test__pod_is_not_running_yet(self):
         # Setup
         status_dict = {
             'metadata': {
@@ -198,7 +127,7 @@ class PodStatusTest(unittest.TestCase):
         assert not pod_status.is_running
         assert not pod_status.is_ready
 
-    def test__pod_status__pod_is_ready(self):
+    def test__pod_is_ready(self):
         # Setup
         status_dict = {
             'metadata': {
@@ -223,7 +152,7 @@ class PodStatusTest(unittest.TestCase):
         assert pod_status.is_running
         assert pod_status.is_ready
 
-    def test__pod_status__pod_is_running_but_not_yet_ready_to_serve(self):
+    def test__pod_is_running_but_not_yet_ready_to_serve(self):
         # Setup
         status_dict = {
             'metadata': {
@@ -248,7 +177,7 @@ class PodStatusTest(unittest.TestCase):
         assert pod_status.is_running
         assert not pod_status.is_ready
 
-    def test__pod_status__status_is_unknown(self):
+    def test__status_is_unknown(self):
         # Exercise
         pod_status = PodStatus(status_dict=None)
 

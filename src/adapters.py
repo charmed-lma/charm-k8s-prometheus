@@ -1,3 +1,6 @@
+import os
+
+
 class FrameworkAdapter:
     '''
     Abstracts out the implementation details of the underlying framework
@@ -18,8 +21,14 @@ class FrameworkAdapter:
         else:
             return self._framework.model.config
 
+    def get_model_name(self):
+        return os.environ["JUJU_MODEL_NAME"]
+
     def get_resources_repo(self):
         return self._framework.model.resources
+
+    def get_unit_name(self):
+        return os.environ["JUJU_UNIT_NAME"]
 
     def observe(self, event, handler):
         self._framework.observe(event, handler)

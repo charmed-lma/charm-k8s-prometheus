@@ -2,7 +2,6 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
-from types import SimpleNamespace
 import unittest
 from unittest.mock import (
     call,
@@ -22,6 +21,9 @@ from ops.framework import (
 sys.path.append('src')
 from charm import (
     Charm
+)
+from handlers import (
+    ConfigChangeOutput
 )
 
 
@@ -44,19 +46,22 @@ class CharmTest(unittest.TestCase):
 
     @patch('charm.handlers.on_config_changed', spec_set=True, autospec=True)
     @patch('charm.FrameworkAdapter', spec_set=True, autospec=True)
+    @patch('charm.k8s', spec_set=True, autospec=True)
     def test__on_config_changed_delegator__it_blocks_until_pod_is_ready(
             self,
+            mock_k8s_mod,
             mock_framework_adapter_cls,
             mock_on_config_changed_handler):
         # Setup
         mock_outputs = [
-            SimpleNamespace(**dict(unit_status=object(), pod_is_ready=False)),
-            SimpleNamespace(**dict(unit_status=object(), pod_is_ready=False)),
-            SimpleNamespace(**dict(unit_status=object(), pod_is_ready=True)),
+            ConfigChangeOutput(unit_status=object(), pod_is_ready=False),
+            ConfigChangeOutput(unit_status=object(), pod_is_ready=False),
+            ConfigChangeOutput(unit_status=object(), pod_is_ready=True)
         ]
         mock_on_config_changed_handler.side_effect = mock_outputs
-        mock_event = create_autospec(EventBase, spec_set=True)
+        mock_pod_status = mock_k8s_mod.get_pod_status.return_value
         mock_adapter = mock_framework_adapter_cls.return_value
+        mock_event = create_autospec(EventBase, spec_set=True)
 
         # Exercise
         charm_obj = Charm(self.create_framework(), None)
@@ -65,10 +70,9 @@ class CharmTest(unittest.TestCase):
         # Assert
         assert mock_on_config_changed_handler.call_count == len(mock_outputs)
         assert mock_on_config_changed_handler.call_args_list == [
-            call(app_name=mock_adapter.get_app_name()),
-            call(app_name=mock_adapter.get_app_name()),
-            call(app_name=mock_adapter.get_app_name()),
+            call(pod_status=mock_pod_status) for i in range(len(mock_outputs))
         ]
+
         assert mock_adapter.set_unit_status.call_count == len(mock_outputs)
         assert mock_adapter.set_unit_status.call_args_list == [
             call(mock_output.unit_status) for mock_output in mock_outputs

@@ -5,7 +5,6 @@ import unittest
 from unittest.mock import (
     call,
     create_autospec,
-    patch,
 )
 from uuid import uuid4
 import yaml
@@ -19,6 +18,9 @@ from ops.model import (
 
 sys.path.append('src')
 import handlers
+from k8s import (
+    PodStatus
+)
 from resources import (
     ResourceError,
     OCIImageResource,
@@ -151,81 +153,91 @@ class OnStartHandlerTest(unittest.TestCase):
 
 class OnConfigChangedHandler(unittest.TestCase):
 
-    @patch('handlers.PodStatus', autospec=True, spec_set=True)
-    def test_returns_maintenance_status_if_pod_status_cannot_be_fetched(
-            self,
-            mock_pod_status_cls):
+    def test_returns_maintenance_status_if_pod_status_cannot_be_fetched(self):
         # Setup
-        mock_pod_status = mock_pod_status_cls.return_value
-        mock_pod_status.is_unknown = True
-        app_name = f'{uuid4()}'
+        pod_status = PodStatus(status_dict=None)
 
         # Exercise
-        output = handlers.on_config_changed(app_name)
+        output = handlers.on_config_changed(pod_status)
 
         # Assertions
-        assert mock_pod_status_cls.call_count == 1
-        assert mock_pod_status_cls.call_args == call(app_name=app_name)
-
-        assert mock_pod_status.fetch.call_count == 1
-        assert mock_pod_status.fetch.call_args == call()
-
         assert type(output.unit_status) == MaintenanceStatus
         assert output.unit_status.message == "Waiting for pod to appear"
         assert not output.pod_is_ready
 
-    @patch('handlers.PodStatus', autospec=True, spec_set=True)
-    def test_returns_maintenance_status_if_pod_is_not_running(
-            self,
-            mock_pod_status_cls):
+    def test_returns_maintenance_status_if_pod_is_not_running(self):
         # Setup
-        mock_pod_status = mock_pod_status_cls.return_value
-        mock_pod_status.is_unknown = False
-        mock_pod_status.is_running = False
-        app_name = f'{uuid4()}'
+        status_dict = {
+            'metadata': {
+                'annotations': {
+                    'juju.io/unit': uuid4()
+                }
+            },
+            'status': {
+                'phase': 'Pending',
+                'conditions': [{
+                    'type': 'ContainersReady',
+                    'status': 'False'
+                }]
+            }
+        }
+        pod_status = PodStatus(status_dict=status_dict)
 
         # Exercise
-        output = handlers.on_config_changed(app_name)
+        output = handlers.on_config_changed(pod_status)
 
         # Assertions
         assert type(output.unit_status) == MaintenanceStatus
         assert output.unit_status.message == "Pod is starting"
         assert not output.pod_is_ready
 
-    @patch('handlers.PodStatus', autospec=True, spec_set=True)
-    def test_returns_maintenance_status_if_pod_is_not_ready(
-            self,
-            mock_pod_status_cls):
+    def test_returns_maintenance_status_if_pod_is_not_ready(self):
         # Setup
-        mock_pod_status = mock_pod_status_cls.return_value
-        mock_pod_status.is_unknown = False
-        mock_pod_status.is_running = True
-        mock_pod_status.is_ready = False
-        app_name = f'{uuid4()}'
+        status_dict = {
+            'metadata': {
+                'annotations': {
+                    'juju.io/unit': uuid4()
+                }
+            },
+            'status': {
+                'phase': 'Running',
+                'conditions': [{
+                    'type': 'ContainersReady',
+                    'status': 'False'
+                }]
+            }
+        }
+        pod_status = PodStatus(status_dict=status_dict)
 
         # Exercise
-        output = handlers.on_config_changed(app_name)
+        output = handlers.on_config_changed(pod_status)
 
         # Assertions
         assert type(output.unit_status) == MaintenanceStatus
         assert output.unit_status.message == "Pod is getting ready"
         assert not output.pod_is_ready
 
-    @patch('handlers.PodStatus', autospec=True, spec_set=True)
-    def test_returns_active_status_if_pod_is_ready(
-            self,
-            mock_pod_status_cls):
+    def test_returns_active_status_if_pod_is_ready(self):
         # Setup
-        mock_pod_status = mock_pod_status_cls.return_value
-        mock_pod_status.is_unknown = False
-        mock_pod_status.is_running = True
-        mock_pod_status.is_ready = True
-        app_name = f'{uuid4()}'
+        status_dict = {
+            'metadata': {
+                'annotations': {
+                    'juju.io/unit': uuid4()
+                }
+            },
+            'status': {
+                'phase': 'Running',
+                'conditions': [{
+                    'type': 'ContainersReady',
+                    'status': 'True'
+                }]
+            }
+        }
+        pod_status = PodStatus(status_dict=status_dict)
 
         # Exercise
-        output = handlers.on_config_changed(app_name)
+        output = handlers.on_config_changed(pod_status)
 
         # Assertions
         assert type(output.unit_status) == ActiveStatus
-        assert output.unit_status.message == ""
         assert output.pod_is_ready

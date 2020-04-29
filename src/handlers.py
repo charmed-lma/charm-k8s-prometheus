@@ -9,12 +9,16 @@ from ops.model import (
     ActiveStatus,
     MaintenanceStatus,
 )
-from k8s import (
-    PodStatus,
-)
 from resources import (
     ResourceError,
 )
+
+
+class ConfigChangeOutput:
+
+    def __init__(self, unit_status, pod_is_ready):
+        self.unit_status = unit_status
+        self.pod_is_ready = pod_is_ready
 
 
 def _create_output_obj(dict_obj):
@@ -109,10 +113,7 @@ def on_start(app_name,
     return _create_output_obj(output)
 
 
-def on_config_changed(app_name):
-
-    pod_status = PodStatus(app_name=app_name)
-    pod_status.fetch()
+def on_config_changed(pod_status):
 
     pod_is_ready = False
 
@@ -126,7 +127,7 @@ def on_config_changed(app_name):
         unit_status = ActiveStatus()
         pod_is_ready = True
 
-    return SimpleNamespace(**dict(
+    return ConfigChangeOutput(
         unit_status=unit_status,
         pod_is_ready=pod_is_ready
-    ))
+    )

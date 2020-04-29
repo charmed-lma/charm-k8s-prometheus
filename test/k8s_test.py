@@ -12,11 +12,67 @@ from uuid import (
 )
 
 sys.path.append('src')
+import k8s
 from k8s import (
     APIServer,
     PodStatus,
     ServiceSpec,
 )
+
+
+class k8sFunctionsTest(unittest.TestCase):
+
+    @patch('k8s.APIServer', autospec=True, spec_set=True)
+    def test__get_pod_status__returns_a_PodStatus_obj_if_resource_found(
+            self,
+            mock_api_server_cls):
+        # Setup
+        juju_model = uuid4()
+        juju_app = uuid4()
+        juju_unit = uuid4()
+
+        mock_api_server = mock_api_server_cls.return_value
+        mock_api_server.get.return_value = {
+            'kind': 'PodList',
+            'items': [{
+                'metadata': {
+                    'annotations': {
+                        'juju.io/unit': juju_unit
+                    }
+                }
+            }]
+        }
+
+        # Exercise
+        pod_status = k8s.get_pod_status(juju_model=juju_model,
+                                        juju_app=juju_app,
+                                        juju_unit=juju_unit)
+
+        # Assert
+        assert type(pod_status) == PodStatus
+
+    @patch('k8s.APIServer', autospec=True, spec_set=True)
+    def test__get_pod_status__returns_PodStatus_even_if_resource_not_found(
+            self,
+            mock_api_server_cls):
+        # Setup
+        juju_model = uuid4()
+        juju_app = uuid4()
+        juju_unit = uuid4()
+
+        mock_api_server = mock_api_server_cls.return_value
+        mock_api_server.get.return_value = {
+            'kind': 'PodList',
+            'items': []
+        }
+
+        # Exercise
+        pod_status = k8s.get_pod_status(juju_model=juju_model,
+                                        juju_app=juju_app,
+                                        juju_unit=juju_unit)
+
+        # Assert
+        assert type(pod_status) == PodStatus
 
 
 class APIServerTest(unittest.TestCase):
@@ -117,204 +173,86 @@ class ServiceSpecTest(unittest.TestCase):
 
 class PodStatusTest(unittest.TestCase):
 
-    @patch('k8s.os', autospec=True, spec_set=True)
-    @patch('k8s.APIServer', autospec=True, spec_set=True)
-    def test_pod_status_fetch_is_succesfull(
-            self,
-            mock_api_server_cls,
-            mock_os):
+    def test__pod_status__pod_is_not_running_yet(self):
         # Setup
-        app_name = f'{uuid4()}'
-        mock_model_name = f'{uuid4()}'
-        mock_unit_name = f'{uuid4()}'
-        mock_os.environ = {
-            'JUJU_MODEL_NAME': mock_model_name,
-            'JUJU_UNIT_NAME': mock_unit_name,
-        }
-        mock_api_server = mock_api_server_cls.return_value
-        mock_api_server.get.return_value = {
-            'kind': 'PodList',
-            'items': [{
-                'metadata': {
-                    'annotations': {
-                        'juju.io/unit': mock_unit_name
-                    }
-                },
-                'status': {
-                    'phase': 'Running',
-                    'conditions': [{
-                        'type': 'ContainersReady',
-                        'status': 'True'
-                    }]
+        status_dict = {
+            'metadata': {
+                'annotations': {
+                    'juju.io/unit': uuid4()
                 }
-            }],
+            },
+            'status': {
+                'phase': 'Pending',
+                'conditions': [{
+                    'type': 'ContainersReady',
+                    'status': 'False'
+                }]
+            }
         }
 
         # Exercise
-        pod_status = PodStatus(app_name)
-        pod_status.fetch()
+        pod_status = PodStatus(status_dict=status_dict)
 
         # Assert
-        assert mock_api_server.get.call_count == 1
-        assert mock_api_server.get.call_args == call(
-            f'/api/v1/namespaces/{mock_model_name}/pods?'
-            f'labelSelector=juju-app={app_name}'
-        )
+        assert not pod_status.is_unknown
+        assert not pod_status.is_running
+        assert not pod_status.is_ready
 
+    def test__pod_status__pod_is_ready(self):
+        # Setup
+        status_dict = {
+            'metadata': {
+                'annotations': {
+                    'juju.io/unit': uuid4()
+                }
+            },
+            'status': {
+                'phase': 'Running',
+                'conditions': [{
+                    'type': 'ContainersReady',
+                    'status': 'True'
+                }]
+            }
+        }
+
+        # Exercise
+        pod_status = PodStatus(status_dict=status_dict)
+
+        # Assert
         assert not pod_status.is_unknown
         assert pod_status.is_running
         assert pod_status.is_ready
 
-    @patch('k8s.os', autospec=True, spec_set=True)
-    @patch('k8s.APIServer', autospec=True, spec_set=True)
-    def test_pod_status_api_server_did_not_return_a_pod_list_dict(
-            self,
-            mock_api_server_cls,
-            mock_os):
+    def test__pod_status__pod_is_running_but_not_yet_ready_to_serve(self):
         # Setup
-        app_name = f'{uuid4()}'
-        mock_model_name = f'{uuid4()}'
-        mock_unit_name = f'{uuid4()}'
-        mock_os.environ = {
-            'JUJU_MODEL_NAME': mock_model_name,
-            'JUJU_UNIT_NAME': mock_unit_name,
-        }
-        mock_api_server = mock_api_server_cls.return_value
-        mock_api_server.get.return_value = {
-            'kind': 'SomethingElse',
-        }
-
-        # Exercise
-        pod_status = PodStatus(app_name)
-        pod_status.fetch()
-
-        assert pod_status.is_unknown
-        assert not pod_status.is_running
-        assert not pod_status.is_ready
-
-    @patch('k8s.os', autospec=True, spec_set=True)
-    @patch('k8s.APIServer', autospec=True, spec_set=True)
-    def test_pod_status_pod_list_does_not_contain_pod_info(
-            self,
-            mock_api_server_cls,
-            mock_os):
-        # Setup
-        app_name = f'{uuid4()}'
-        mock_model_name = f'{uuid4()}'
-        mock_unit_name = f'{uuid4()}'
-        mock_os.environ = {
-            'JUJU_MODEL_NAME': mock_model_name,
-            'JUJU_UNIT_NAME': mock_unit_name,
-        }
-        mock_api_server = mock_api_server_cls.return_value
-        mock_api_server.get.return_value = {
-            'kind': 'PodList',
-            'items': [{
-                'metadata': {
-                    'annotations': {
-                        # Some other unit name
-                        'juju.io/unit': f'{uuid4()}'
-                    }
-                },
-                'status': {
-                    'phase': 'Running',
-                    'conditions': [{
-                        'type': 'ContainersReady',
-                        'status': 'True'
-                    }]
+        status_dict = {
+            'metadata': {
+                'annotations': {
+                    'juju.io/unit': uuid4()
                 }
-            }],
+            },
+            'status': {
+                'phase': 'Running',
+                'conditions': [{
+                    'type': 'ContainersReady',
+                    'status': 'False'
+                }]
+            }
         }
 
         # Exercise
-        pod_status = PodStatus(app_name)
-        pod_status.fetch()
-
-        # Assert
-        assert pod_status.is_unknown
-        assert not pod_status.is_running
-        assert not pod_status.is_ready
-
-    @patch('k8s.os', autospec=True, spec_set=True)
-    @patch('k8s.APIServer', autospec=True, spec_set=True)
-    def test_pod_status_pod_is_not_running_yet(
-            self,
-            mock_api_server_cls,
-            mock_os):
-        # Setup
-        app_name = f'{uuid4()}'
-        mock_model_name = f'{uuid4()}'
-        mock_unit_name = f'{uuid4()}'
-        mock_os.environ = {
-            'JUJU_MODEL_NAME': mock_model_name,
-            'JUJU_UNIT_NAME': mock_unit_name,
-        }
-        mock_api_server = mock_api_server_cls.return_value
-        mock_api_server.get.return_value = {
-            'kind': 'PodList',
-            'items': [{
-                'metadata': {
-                    'annotations': {
-                        'juju.io/unit': mock_unit_name
-                    }
-                },
-                'status': {
-                    'phase': 'Pending',
-                    'conditions': [{
-                        'type': 'ContainersReady',
-                        'status': 'False'
-                    }]
-                }
-            }],
-        }
-
-        # Exercise
-        pod_status = PodStatus(app_name)
-        pod_status.fetch()
-
-        # Assert
-        assert not pod_status.is_unknown
-        assert not pod_status.is_running
-        assert not pod_status.is_ready
-
-    @patch('k8s.os', autospec=True, spec_set=True)
-    @patch('k8s.APIServer', autospec=True, spec_set=True)
-    def test_pod_status_pod_is_running_but_not_ready_to_serve_requests(
-            self,
-            mock_api_server_cls,
-            mock_os):
-        # Setup
-        app_name = f'{uuid4()}'
-        mock_model_name = f'{uuid4()}'
-        mock_unit_name = f'{uuid4()}'
-        mock_os.environ = {
-            'JUJU_MODEL_NAME': mock_model_name,
-            'JUJU_UNIT_NAME': mock_unit_name,
-        }
-        mock_api_server = mock_api_server_cls.return_value
-        mock_api_server.get.return_value = {
-            'kind': 'PodList',
-            'items': [{
-                'metadata': {
-                    'annotations': {
-                        'juju.io/unit': mock_unit_name
-                    }
-                },
-                'status': {
-                    'phase': 'Running',
-                    'conditions': [{
-                        'type': 'ContainersReady',
-                        'status': 'False'
-                    }]
-                }
-            }],
-        }
-
-        # Exercise
-        pod_status = PodStatus(app_name)
-        pod_status.fetch()
+        pod_status = PodStatus(status_dict=status_dict)
 
         # Assert
         assert not pod_status.is_unknown
         assert pod_status.is_running
+        assert not pod_status.is_ready
+
+    def test__pod_status__status_is_unknown(self):
+        # Exercise
+        pod_status = PodStatus(status_dict=None)
+
+        # Assert
+        assert pod_status.is_unknown
+        assert not pod_status.is_running
         assert not pod_status.is_ready

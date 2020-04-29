@@ -9,6 +9,7 @@ from ops.main import main
 
 from adapters import FrameworkAdapter
 import handlers
+import k8s
 from resources import (
     PrometheusImageResource,
 )
@@ -49,10 +50,15 @@ class Charm(CharmBase):
 
     def on_config_changed_delegator(self, event):
         pod_is_ready = False
+        juju_model = self.adapter.get_model_name()
+        juju_app = self.adapter.get_app_name()
+        juju_unit = self.adapter.get_unit_name()
 
         while not pod_is_ready:
             output = handlers.on_config_changed(
-                app_name=self.adapter.get_app_name()
+                pod_status=k8s.get_pod_status(juju_model=juju_model,
+                                              juju_app=juju_app,
+                                              juju_unit=juju_unit)
             )
             self.adapter.set_unit_status(output.unit_status)
             pod_is_ready = output.pod_is_ready

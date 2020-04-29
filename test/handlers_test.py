@@ -2,17 +2,12 @@ import json
 import random
 import sys
 import unittest
-from unittest.mock import (
-    call,
-    create_autospec,
-)
 from uuid import uuid4
 import yaml
 
 sys.path.append('lib')
 from ops.model import (
     ActiveStatus,
-    BlockedStatus,
     MaintenanceStatus,
 )
 
@@ -21,9 +16,8 @@ import handlers
 from k8s import (
     PodStatus
 )
-from resources import (
-    ResourceError,
-    OCIImageResource,
+from image_registry import (
+    ImageMeta,
 )
 
 
@@ -45,19 +39,19 @@ class OnStartHandlerTest(unittest.TestCase):
             'external-labels': json.dumps(mock_external_labels)
         }
 
-        mock_image_resource = create_autospec(OCIImageResource, spec_set=True)
-        mock_image_resource.fetch.return_value = True
+        mock_image_meta = ImageMeta({
+            'registrypath': str(uuid4()),
+            'username': str(uuid4()),
+            'password': str(uuid4()),
+        })
 
         # Exercise
         output = handlers.on_start(
             app_name=mock_app_name,
             config=mock_config,
-            image_resource=mock_image_resource)
+            image_meta=mock_image_meta)
 
         # Assertions
-        assert mock_image_resource.fetch.call_count == 1
-        assert mock_image_resource.fetch.call_args == call()
-
         assert type(output.unit_status) == MaintenanceStatus
         assert output.unit_status.message == "Configuring pod"
 
@@ -65,9 +59,9 @@ class OnStartHandlerTest(unittest.TestCase):
         assert output.spec == {'containers': [{
             'name': mock_app_name,
             'imageDetails': {
-                'imagePath': mock_image_resource.image_path,
-                'username': mock_image_resource.username,
-                'password': mock_image_resource.password
+                'imagePath': mock_image_meta.image_path,
+                'username': mock_image_meta.username,
+                'password': mock_image_meta.password
             },
             'ports': [{
                 'containerPort': mock_config['advertised-port'],
@@ -115,40 +109,6 @@ class OnStartHandlerTest(unittest.TestCase):
                 }
             }]
         }]}
-
-    def test_ResourceError_is_caught_and_handled_properly(self):
-        # Set up
-        mock_app_name = f'{uuid4()}'
-
-        mock_advertised_port = random.randint(1, 65535)
-        mock_external_labels = {
-            f"{uuid4()}": f"{uuid4()}",
-            f"{uuid4()}": f"{uuid4()}",
-            f"{uuid4()}": f"{uuid4()}",
-        }
-
-        mock_config = {
-            'advertised-port': mock_advertised_port,
-            'external-labels': json.dumps(mock_external_labels)
-        }
-
-        mock_resource_error = ResourceError(f'{uuid4()}', f'{uuid4()}')
-        mock_image_resource = create_autospec(OCIImageResource, spec_set=True)
-        mock_image_resource.fetch.side_effect = mock_resource_error
-
-        # Exercise
-        output = handlers.on_start(
-            app_name=mock_app_name,
-            config=mock_config,
-            image_resource=mock_image_resource)
-
-        # Assertions
-        assert mock_image_resource.fetch.call_count == 1
-
-        assert type(output.unit_status) == BlockedStatus
-        assert output.unit_status == mock_resource_error.status
-
-        assert output.spec is None
 
 
 class OnConfigChangedHandler(unittest.TestCase):

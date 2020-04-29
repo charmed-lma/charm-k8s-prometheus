@@ -8,6 +8,7 @@ from unittest.mock import (
     create_autospec,
     patch
 )
+from uuid import uuid4
 
 sys.path.append('lib')
 from ops.charm import (
@@ -23,7 +24,11 @@ from charm import (
     Charm
 )
 from handlers import (
-    ConfigChangeOutput
+    ConfigChangeOutput,
+    StartOutput
+)
+from image_registry import (
+    ResourceError
 )
 
 
@@ -82,36 +87,30 @@ class CharmTest(unittest.TestCase):
     # real object, autospec=True automatically copies the signature of the
     # mocked object to the mock.
     @patch('charm.handlers.on_start', spec_set=True, autospec=True)
-    @patch('charm.PrometheusImageResource', spec_set=True, autospec=True)
+    @patch('charm.image_registry', spec_set=True, autospec=True)
     @patch('charm.FrameworkAdapter', spec_set=True, autospec=True)
     def test__on_start_delegator__spec_is_set(
             self,
             mock_framework_adapter_cls,
-            mock_prometheus_image_resource_cls,
+            mock_image_registry_mod,
             mock_on_start_handler):
 
         # Setup
-        mock_event = create_autospec(EventBase, spec_set=True)
         mock_adapter = mock_framework_adapter_cls.return_value
-        mock_image_resource = mock_prometheus_image_resource_cls.return_value
-        mock_output = create_autospec(object)
-        mock_output.spec = create_autospec(object)
-        mock_output.unit_status = create_autospec(object)
+        mock_image_meta = mock_image_registry_mod.fetch_meta.return_value
+        mock_output = StartOutput(spec=object(), unit_status=object())
         mock_on_start_handler.return_value = mock_output
 
         # Exercise
         charm_obj = Charm(self.create_framework(), None)
-        charm_obj.on_start_delegator(mock_event)
+        charm_obj.on_start_delegator(create_autospec(EventBase, spec_set=True))
 
         # Assertions
-        assert mock_adapter.get_config.call_count == 1
-        assert mock_adapter.get_config.call_args == call()
-
         assert mock_on_start_handler.call_count == 1
         assert mock_on_start_handler.call_args == call(
             app_name=mock_adapter.get_app_name.return_value,
             config=mock_adapter.get_config.return_value,
-            image_resource=mock_image_resource)
+            image_meta=mock_image_meta)
 
         assert mock_adapter.set_pod_spec.call_count == 1
         assert mock_adapter.set_pod_spec.call_args == \
@@ -121,42 +120,22 @@ class CharmTest(unittest.TestCase):
         assert mock_adapter.set_unit_status.call_args == \
             call(mock_output.unit_status)
 
-    @patch('charm.handlers.on_start', spec_set=True, autospec=True)
-    @patch('charm.PrometheusImageResource', spec_set=True, autospec=True)
+    @patch('charm.image_registry', spec_set=True, autospec=True)
     @patch('charm.FrameworkAdapter', spec_set=True, autospec=True)
-    def test__on_upgrade_delegator__it_updates_the_spec(
+    def test__on_start_delegator__image_meta_fetch_failed(
             self,
             mock_framework_adapter_cls,
-            mock_prometheus_image_resource_cls,
-            mock_on_start_handler):
-
+            mock_image_registry_mod):
         # Setup
-        mock_event = create_autospec(EventBase, spec_set=True)
+        mock_error = ResourceError(resource_name=str(uuid4()),
+                                   message=str(uuid4()))
+        mock_image_registry_mod.fetch_meta.side_effect = mock_error
         mock_adapter = mock_framework_adapter_cls.return_value
-        mock_image_resource = mock_prometheus_image_resource_cls.return_value
-        mock_output = create_autospec(object)
-        mock_output.spec = create_autospec(object)
-        mock_output.unit_status = create_autospec(object)
-        mock_on_start_handler.return_value = mock_output
 
         # Exercise
         charm_obj = Charm(self.create_framework(), None)
-        charm_obj.on_upgrade_delegator(mock_event)
+        charm_obj.on_start_delegator(create_autospec(EventBase, spec_set=True))
 
         # Assertions
-        assert mock_adapter.get_config.call_count == 1
-        assert mock_adapter.get_config.call_args == call()
-
-        assert mock_on_start_handler.call_count == 1
-        assert mock_on_start_handler.call_args == call(
-            app_name=mock_adapter.get_app_name.return_value,
-            config=mock_adapter.get_config.return_value,
-            image_resource=mock_image_resource)
-
-        assert mock_adapter.set_pod_spec.call_count == 1
-        assert mock_adapter.set_pod_spec.call_args == \
-            call(mock_output.spec)
-
+        assert mock_adapter.set_pod_spec.call_count == 0
         assert mock_adapter.set_unit_status.call_count == 1
-        assert mock_adapter.set_unit_status.call_args == \
-            call(mock_output.unit_status)

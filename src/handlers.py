@@ -1,5 +1,4 @@
 import json
-from types import SimpleNamespace
 import yaml
 
 import sys
@@ -8,9 +7,6 @@ sys.path.append('lib')
 from ops.model import (
     ActiveStatus,
     MaintenanceStatus,
-)
-from resources import (
-    ResourceError,
 )
 
 
@@ -21,13 +17,14 @@ class ConfigChangeOutput:
         self.pod_is_ready = pod_is_ready
 
 
-def _create_output_obj(dict_obj):
-    return SimpleNamespace(**dict_obj)
+class StartOutput:
+
+    def __init__(self, unit_status, spec):
+        self.unit_status = unit_status
+        self.spec = spec
 
 
-def on_start(app_name,
-             config,
-             image_resource):
+def on_start(app_name, config, image_meta):
     """Generates the k8s spec needed to deploy Prometheus on k8s
 
     :param str app_name: The name of the application.
@@ -35,23 +32,14 @@ def on_start(app_name,
     :param dict config: Key-value pairs derived from config options declared
         in config.yaml
 
-    :param OCIImageResource image_resource: Image resource object containing
+    :param ImageMeta image_meta: Image resource object containing
         the registry path, username, and password.
 
     :returns: An object containing the spec dict and other attributes.
 
-    :rtype: :class:`handlers.OnStartHandlerOutput`
+    :rtype: :class:`handlers.StartOutput`
 
     """
-    try:
-        image_resource.fetch()
-    except ResourceError as err:
-        output = dict(
-            unit_status=err.status,
-            spec=None
-        )
-        return _create_output_obj(output)
-
     external_labels = json.loads(config['external-labels'])
     advertised_port = config['advertised-port']
 
@@ -61,9 +49,9 @@ def on_start(app_name,
             'containers': [{
                 'name': app_name,
                 'imageDetails': {
-                    'imagePath': image_resource.image_path,
-                    'username': image_resource.username,
-                    'password': image_resource.password
+                    'imagePath': image_meta.image_path,
+                    'username': image_meta.username,
+                    'password': image_meta.password
                 },
                 'ports': [{
                     'containerPort': advertised_port,
@@ -110,7 +98,7 @@ def on_start(app_name,
         }
     )
 
-    return _create_output_obj(output)
+    return StartOutput(**output)
 
 
 def on_config_changed(pod_status):

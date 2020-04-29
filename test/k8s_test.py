@@ -24,8 +24,6 @@ class GetPodStatusTest(unittest.TestCase):
             self,
             mock_api_server_cls):
         # Setup
-        juju_model = uuid4()
-        juju_app = uuid4()
         juju_unit = uuid4()
 
         mock_api_server = mock_api_server_cls.return_value
@@ -41,8 +39,8 @@ class GetPodStatusTest(unittest.TestCase):
         }
 
         # Exercise
-        pod_status = k8s.get_pod_status(juju_model=juju_model,
-                                        juju_app=juju_app,
+        pod_status = k8s.get_pod_status(juju_model=uuid4(),
+                                        juju_app=uuid4(),
                                         juju_unit=juju_unit)
 
         # Assert
@@ -53,10 +51,6 @@ class GetPodStatusTest(unittest.TestCase):
             self,
             mock_api_server_cls):
         # Setup
-        juju_model = uuid4()
-        juju_app = uuid4()
-        juju_unit = uuid4()
-
         mock_api_server = mock_api_server_cls.return_value
         mock_api_server.get.return_value = {
             'kind': 'PodList',
@@ -64,9 +58,9 @@ class GetPodStatusTest(unittest.TestCase):
         }
 
         # Exercise
-        pod_status = k8s.get_pod_status(juju_model=juju_model,
-                                        juju_app=juju_app,
-                                        juju_unit=juju_unit)
+        pod_status = k8s.get_pod_status(juju_model=uuid4(),
+                                        juju_app=uuid4(),
+                                        juju_unit=uuid4())
 
         # Assert
         assert type(pod_status) == PodStatus

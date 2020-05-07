@@ -12,6 +12,9 @@ class FrameworkAdapter:
     def __init__(self, framework):
         self._framework = framework
 
+    def am_i_leader(self):
+        return self._framework.model.unit.is_leader()
+
     def get_app_name(self):
         return self._framework.model.app.name
 

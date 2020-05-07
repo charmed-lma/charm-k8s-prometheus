@@ -46,7 +46,7 @@ Preview the Prometheus GUI
 
 Run:
 
-    kubectl -n prometheus port-forward svc/prometheus 9090:9090
+    kubectl -n lma port-forward svc/prometheus 9090:9090
 
 The above assumes you're using the default value for `advertised-port`. If
 you customized this value from 9090 to some other value, change the command

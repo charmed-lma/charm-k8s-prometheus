@@ -12,7 +12,7 @@ from ops.model import (
 )
 
 sys.path.append('src')
-import handlers
+import domain
 from k8s import (
     PodStatus
 )
@@ -21,9 +21,9 @@ from image_registry import (
 )
 
 
-class OnStartHandlerTest(unittest.TestCase):
+class BuildJujuPodSpecTest(unittest.TestCase):
 
-    def test_pod_spec_is_generated(self):
+    def test__pod_spec_is_generated(self):
         # Set up
         mock_app_name = f'{uuid4()}'
 
@@ -46,17 +46,14 @@ class OnStartHandlerTest(unittest.TestCase):
         })
 
         # Exercise
-        output = handlers.on_start(
+        juju_pod_spec = domain.build_juju_pod_spec(
             app_name=mock_app_name,
-            config=mock_config,
+            charm_config=mock_config,
             image_meta=mock_image_meta)
 
         # Assertions
-        assert type(output.unit_status) == MaintenanceStatus
-        assert output.unit_status.message == "Configuring pod"
-
-        assert type(output.spec) == dict
-        assert output.spec == {'containers': [{
+        assert type(juju_pod_spec) == dict
+        assert juju_pod_spec == {'containers': [{
             'name': mock_app_name,
             'imageDetails': {
                 'imagePath': mock_image_meta.image_path,
@@ -111,19 +108,18 @@ class OnStartHandlerTest(unittest.TestCase):
         }]}
 
 
-class OnConfigChangedHandler(unittest.TestCase):
+class BuildJujuUnitStatusTest(unittest.TestCase):
 
     def test_returns_maintenance_status_if_pod_status_cannot_be_fetched(self):
         # Setup
         pod_status = PodStatus(status_dict=None)
 
         # Exercise
-        output = handlers.on_config_changed(pod_status)
+        juju_unit_status = domain.build_juju_unit_status(pod_status)
 
         # Assertions
-        assert type(output.unit_status) == MaintenanceStatus
-        assert output.unit_status.message == "Waiting for pod to appear"
-        assert not output.pod_is_ready
+        assert type(juju_unit_status) == MaintenanceStatus
+        assert juju_unit_status.message == "Waiting for pod to appear"
 
     def test_returns_maintenance_status_if_pod_is_not_running(self):
         # Setup
@@ -144,12 +140,11 @@ class OnConfigChangedHandler(unittest.TestCase):
         pod_status = PodStatus(status_dict=status_dict)
 
         # Exercise
-        output = handlers.on_config_changed(pod_status)
+        juju_unit_status = domain.build_juju_unit_status(pod_status)
 
         # Assertions
-        assert type(output.unit_status) == MaintenanceStatus
-        assert output.unit_status.message == "Pod is starting"
-        assert not output.pod_is_ready
+        assert type(juju_unit_status) == MaintenanceStatus
+        assert juju_unit_status.message == "Pod is starting"
 
     def test_returns_maintenance_status_if_pod_is_not_ready(self):
         # Setup
@@ -170,12 +165,11 @@ class OnConfigChangedHandler(unittest.TestCase):
         pod_status = PodStatus(status_dict=status_dict)
 
         # Exercise
-        output = handlers.on_config_changed(pod_status)
+        juju_unit_status = domain.build_juju_unit_status(pod_status)
 
         # Assertions
-        assert type(output.unit_status) == MaintenanceStatus
-        assert output.unit_status.message == "Pod is getting ready"
-        assert not output.pod_is_ready
+        assert type(juju_unit_status) == MaintenanceStatus
+        assert juju_unit_status.message == "Pod is getting ready"
 
     def test_returns_active_status_if_pod_is_ready(self):
         # Setup
@@ -196,8 +190,7 @@ class OnConfigChangedHandler(unittest.TestCase):
         pod_status = PodStatus(status_dict=status_dict)
 
         # Exercise
-        output = handlers.on_config_changed(pod_status)
+        juju_unit_status = domain.build_juju_unit_status(pod_status)
 
         # Assertions
-        assert type(output.unit_status) == ActiveStatus
-        assert output.pod_is_ready
+        assert type(juju_unit_status) == ActiveStatus

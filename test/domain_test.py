@@ -16,7 +16,7 @@ import domain
 from k8s import (
     PodStatus
 )
-from image_registry import (
+from adapters import (
     ImageMeta,
 )
 
@@ -57,8 +57,8 @@ class BuildJujuPodSpecTest(unittest.TestCase):
             'name': mock_app_name,
             'imageDetails': {
                 'imagePath': mock_image_meta.image_path,
-                'username': mock_image_meta.username,
-                'password': mock_image_meta.password
+                'username': mock_image_meta.repo_username,
+                'password': mock_image_meta.repo_password
             },
             'ports': [{
                 'containerPort': mock_config['advertised-port'],

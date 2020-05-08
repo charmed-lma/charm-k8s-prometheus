@@ -16,10 +16,6 @@ from domain import (
     build_juju_pod_spec,
     build_juju_unit_status,
 )
-import image_registry
-from image_registry import (
-    ResourceError
-)
 import k8s
 
 
@@ -96,19 +92,10 @@ def on_config_changed_handler(event, framework):
 
 
 def on_start_handler(event, framework):
-    try:
-        image_meta = image_registry.fetch_meta(
-            image_name='prometheus-image',
-            resources_repo=framework.get_resources_repo()
-        )
-    except ResourceError as err:
-        framework.set_unit_status(err.status)
-        return
-
     juju_pod_spec = build_juju_pod_spec(
         app_name=framework.get_app_name(),
         charm_config=framework.get_config(),
-        image_meta=image_meta
+        image_meta=framework.get_image_meta('prometheus-image')
     )
 
     framework.set_pod_spec(juju_pod_spec)

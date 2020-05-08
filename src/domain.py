@@ -27,8 +27,8 @@ def build_juju_pod_spec(app_name,
             'name': app_name,
             'imageDetails': {
                 'imagePath': image_meta.image_path,
-                'username': image_meta.username,
-                'password': image_meta.password
+                'username': image_meta.repo_username,
+                'password': image_meta.repo_password
             },
             'ports': [{
                 'containerPort': advertised_port,

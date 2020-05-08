@@ -88,11 +88,9 @@ class OnConfigChangedHandlerTest(unittest.TestCase):
 
 class OnStartHandlerTest(unittest.TestCase):
 
-    @patch('charm.image_registry', spec_set=True, autospec=True)
     @patch('charm.build_juju_pod_spec', spec_set=True, autospec=True)
     def test__it_updates_the_juju_pod_spec(self,
-                                           mock_build_juju_pod_spec_func,
-                                           mock_image_registry_mod):
+                                           mock_build_juju_pod_spec_func):
         # Setup
         mock_fw_adapter_cls = \
             create_autospec(adapters.FrameworkAdapter,
@@ -111,7 +109,7 @@ class OnStartHandlerTest(unittest.TestCase):
         assert mock_build_juju_pod_spec_func.call_args == \
             call(app_name=mock_fw.get_app_name.return_value,
                  charm_config=mock_fw.get_config.return_value,
-                 image_meta=mock_image_registry_mod.fetch_meta.return_value)
+                 image_meta=mock_fw.get_image_meta.return_value)
 
         assert mock_fw.set_pod_spec.call_count == 1
         assert mock_fw.set_pod_spec.call_args == \

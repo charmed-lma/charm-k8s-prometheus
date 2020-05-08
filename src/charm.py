@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
+import logging
+logger = logging.getLogger()
 import sys
+import time
 sys.path.append('lib')
 
 from ops.charm import (
@@ -83,21 +86,25 @@ def on_config_changed_handler(event, fw_adapter):
     pod_is_ready = False
 
     while not pod_is_ready:
+        logging.debug(f"Checking k8s pod readiness")
         k8s_pod_status = k8s.get_pod_status(juju_model=juju_model,
                                             juju_app=juju_app,
                                             juju_unit=juju_unit)
         juju_unit_status = build_juju_unit_status(k8s_pod_status)
         fw_adapter.set_unit_status(juju_unit_status)
         pod_is_ready = isinstance(juju_unit_status, ActiveStatus)
+        time.sleep(1)
 
 
 def on_start_handler(event, fw_adapter):
+    logging.debug("Building Juju pod spec")
     juju_pod_spec = build_juju_pod_spec(
         app_name=fw_adapter.get_app_name(),
         charm_config=fw_adapter.get_config(),
         image_meta=fw_adapter.get_image_meta('prometheus-image')
     )
 
+    logging.debug("Configuring pod")
     fw_adapter.set_pod_spec(juju_pod_spec)
     fw_adapter.set_unit_status(MaintenanceStatus("Configuring pod"))
 

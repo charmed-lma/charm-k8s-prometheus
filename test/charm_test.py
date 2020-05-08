@@ -56,10 +56,14 @@ class CharmTest(unittest.TestCase):
 
 class OnConfigChangedHandlerTest(unittest.TestCase):
 
+    # We are mocking the time module here so that we don't actually wait
+    # 1 second per loop during test exectution.
     @patch('charm.build_juju_unit_status', spec_set=True, autospec=True)
     @patch('charm.k8s', spec_set=True, autospec=True)
+    @patch('charm.time', spec_set=True, autospec=True)
     def test__it_blocks_until_pod_is_ready(
             self,
+            mock_time,
             mock_k8s_mod,
             mock_build_juju_unit_status_func):
         # Setup

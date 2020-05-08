@@ -1,5 +1,7 @@
 import json
 import http.client
+import logging
+logger = logging.getLogger()
 import ssl
 
 
@@ -46,8 +48,9 @@ class APIServer:
             'Authorization': f'Bearer {kube_token}'
         }
 
-        conn = http.client.HTTPSConnection('kubernetes.default.svc',
-                                           context=ssl_context)
+        host = 'kubernetes.default.svc'
+        conn = http.client.HTTPSConnection(f'{host}', context=ssl_context)
+        logger.debug(f"{method} {host}/{path}")
         conn.request(method=method, url=path, headers=headers)
 
         return json.loads(conn.getresponse().read())

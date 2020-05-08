@@ -13,10 +13,10 @@ from ops.model import (
 
 sys.path.append('src')
 import domain
-from k8s import (
+from adapters.k8s import (
     PodStatus
 )
-from adapters import (
+from adapters.framework import (
     ImageMeta,
 )
 

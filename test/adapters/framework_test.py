@@ -23,7 +23,7 @@ from ops.model import (
 )
 
 sys.path.append('src')
-from adapters import (
+from adapters.framework import (
     _fetch_image_meta,
     FrameworkAdapter,
     ResourceError,
@@ -200,7 +200,7 @@ class FrameworkAdapterTest(unittest.TestCase):
         # Assert
         assert config == mock_config
 
-    @patch('adapters._fetch_image_meta', spec_set=True)
+    @patch('adapters.framework._fetch_image_meta', spec_set=True)
     def test__get_image_meta__returns_an_image_meta_object(
             self, mock_fetch_image_meta_func):
         # Setup

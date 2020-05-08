@@ -24,7 +24,9 @@ from ops.model import (
 )
 
 sys.path.append('src')
-import adapters
+from adapters import (
+    framework,
+)
 import charm
 
 
@@ -62,7 +64,7 @@ class OnConfigChangedHandlerTest(unittest.TestCase):
             mock_build_juju_unit_status_func):
         # Setup
         mock_fw_adapter_cls = \
-            create_autospec(adapters.FrameworkAdapter, spec_set=True)
+            create_autospec(framework.FrameworkAdapter, spec_set=True)
         mock_fw_adapter = mock_fw_adapter_cls.return_value
 
         mock_juju_unit_states = [
@@ -93,7 +95,7 @@ class OnStartHandlerTest(unittest.TestCase):
                                            mock_build_juju_pod_spec_func):
         # Setup
         mock_fw_adapter_cls = \
-            create_autospec(adapters.FrameworkAdapter,
+            create_autospec(framework.FrameworkAdapter,
                             spec_set=True)
         mock_fw = mock_fw_adapter_cls.return_value
         mock_fw.am_i_leader.return_value = True

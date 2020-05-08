@@ -11,12 +11,12 @@ from ops.model import (
     MaintenanceStatus,
 )
 
-from adapters import FrameworkAdapter
+from adapters.framework import FrameworkAdapter
 from domain import (
     build_juju_pod_spec,
     build_juju_unit_status,
 )
-import k8s
+from adapters import k8s
 
 
 # CHARM

@@ -10,8 +10,8 @@ from uuid import (
 )
 
 sys.path.append('src')
-import k8s
-from k8s import (
+from adapters import k8s
+from adapters.k8s import (
     APIServer,
     PodStatus,
 )
@@ -19,7 +19,7 @@ from k8s import (
 
 class GetPodStatusTest(unittest.TestCase):
 
-    @patch('k8s.APIServer', autospec=True, spec_set=True)
+    @patch('adapters.k8s.APIServer', autospec=True, spec_set=True)
     def test__returns_a_PodStatus_obj_if_resource_found(
             self,
             mock_api_server_cls):
@@ -46,7 +46,7 @@ class GetPodStatusTest(unittest.TestCase):
         # Assert
         assert type(pod_status) == PodStatus
 
-    @patch('k8s.APIServer', autospec=True, spec_set=True)
+    @patch('adapters.k8s.APIServer', autospec=True, spec_set=True)
     def test__returns_PodStatus_even_if_resource_not_found(
             self,
             mock_api_server_cls):
@@ -68,9 +68,10 @@ class GetPodStatusTest(unittest.TestCase):
 
 class APIServerTest(unittest.TestCase):
 
-    @patch('k8s.open', create=True)
-    @patch('k8s.ssl.SSLContext', autospec=True, spec_set=True)
-    @patch('k8s.http.client.HTTPSConnection', autospec=True, spec_set=True)
+    @patch('adapters.k8s.open', create=True)
+    @patch('adapters.k8s.ssl.SSLContext', autospec=True, spec_set=True)
+    @patch('adapters.k8s.http.client.HTTPSConnection',
+           autospec=True, spec_set=True)
     def test__get__loads_json_string_successfully(
             self,
             mock_https_connection_cls,

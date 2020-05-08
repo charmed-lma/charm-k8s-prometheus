@@ -75,10 +75,10 @@ class Charm(CharmBase):
 # similar to controllers in an MVC app in that they are only concerned with
 # coordinating domain models and services.
 
-def on_config_changed_handler(event, framework):
-    juju_model = framework.get_model_name()
-    juju_app = framework.get_app_name()
-    juju_unit = framework.get_unit_name()
+def on_config_changed_handler(event, fw_adapter):
+    juju_model = fw_adapter.get_model_name()
+    juju_app = fw_adapter.get_app_name()
+    juju_unit = fw_adapter.get_unit_name()
 
     pod_is_ready = False
 
@@ -87,23 +87,23 @@ def on_config_changed_handler(event, framework):
                                             juju_app=juju_app,
                                             juju_unit=juju_unit)
         juju_unit_status = build_juju_unit_status(k8s_pod_status)
-        framework.set_unit_status(juju_unit_status)
+        fw_adapter.set_unit_status(juju_unit_status)
         pod_is_ready = isinstance(juju_unit_status, ActiveStatus)
 
 
-def on_start_handler(event, framework):
+def on_start_handler(event, fw_adapter):
     juju_pod_spec = build_juju_pod_spec(
-        app_name=framework.get_app_name(),
-        charm_config=framework.get_config(),
-        image_meta=framework.get_image_meta('prometheus-image')
+        app_name=fw_adapter.get_app_name(),
+        charm_config=fw_adapter.get_config(),
+        image_meta=fw_adapter.get_image_meta('prometheus-image')
     )
 
-    framework.set_pod_spec(juju_pod_spec)
-    framework.set_unit_status(MaintenanceStatus("Configuring pod"))
+    fw_adapter.set_pod_spec(juju_pod_spec)
+    fw_adapter.set_unit_status(MaintenanceStatus("Configuring pod"))
 
 
-def on_upgrade_handler(event, framework):
-    on_start_handler(event, framework)
+def on_upgrade_handler(event, fw_adapter):
+    on_start_handler(event, fw_adapter)
 
 
 if __name__ == "__main__":

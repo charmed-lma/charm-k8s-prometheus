@@ -20,13 +20,14 @@ from domain import (
     build_juju_unit_status,
 )
 from adapters import k8s
-
+from interface_http import PrometheusInterface
 
 # CHARM
 
 # This charm class mainly does self-configuration via its initializer and
 # contains not much logic. It also just has one-liner delegators the design
 # of which is further discussed below (just before the delegator definitions)
+
 
 class Charm(CharmBase):
 
@@ -38,12 +39,13 @@ class Charm(CharmBase):
         # From this point forward, our Charm object will only interact with the
         # adapter and not directly with the framework.
         self.fw_adapter = FrameworkAdapter(self.framework)
-
+        self.prometheus = PrometheusInterface(self, 'http-api')
         # Bind event handlers to events
         event_handler_bindings = {
             self.on.start: self.on_start,
             self.on.config_changed: self.on_config_changed,
             self.on.upgrade_charm: self.on_upgrade,
+            self.prometheus.on.new_client: self.prometheus.new_client_handler
         }
         for event, handler in event_handler_bindings.items():
             self.fw_adapter.observe(event, handler)
@@ -60,6 +62,7 @@ class Charm(CharmBase):
     # logic is moved away from this class.
 
     def on_config_changed(self, event):
+        self.prometheus.render_relation_data()
         on_config_changed_handler(event, self.fw_adapter)
 
     def on_start(self, event):
@@ -70,7 +73,6 @@ class Charm(CharmBase):
 
 
 # EVENT HANDLERS
-
 # These event handlers are designed to be stateless and, as much as possible,
 # procedural (run from top to bottom). They are stateless since any stored
 # states are already handled by the Charm object anyway and also because this
@@ -86,11 +88,13 @@ def on_config_changed_handler(event, fw_adapter):
     pod_is_ready = False
 
     while not pod_is_ready:
-        logging.debug(f"Checking k8s pod readiness")
+        logging.debug("Checking k8s pod readiness")
         k8s_pod_status = k8s.get_pod_status(juju_model=juju_model,
                                             juju_app=juju_app,
                                             juju_unit=juju_unit)
+        logging.debug("Received k8s pod status: %s" % k8s_pod_status)
         juju_unit_status = build_juju_unit_status(k8s_pod_status)
+        logging.debug("Built unit status: %s" % juju_unit_status)
         fw_adapter.set_unit_status(juju_unit_status)
         pod_is_ready = isinstance(juju_unit_status, ActiveStatus)
         time.sleep(1)

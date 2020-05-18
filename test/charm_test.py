@@ -39,8 +39,11 @@ class CharmTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmpdir)
 
     def create_framework(self):
+        raw_meta = {
+            'provides': {'http-api': {"interface": "prometheus-http-api"}}
+        }
         framework = Framework(self.tmpdir / "framework.data",
-                              self.tmpdir, CharmMeta(), None)
+                              self.tmpdir, CharmMeta(raw=raw_meta), None)
         # Ensure that the Framework object is closed and cleaned up even
         # when the test fails or errors out.
         self.addCleanup(framework.close)

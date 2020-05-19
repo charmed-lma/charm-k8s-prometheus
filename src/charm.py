@@ -91,9 +91,9 @@ def on_config_changed_handler(event, fw_adapter):
         k8s_pod_status = k8s.get_pod_status(juju_model=juju_model,
                                             juju_app=juju_app,
                                             juju_unit=juju_unit)
-        logging.debug("Received k8s pod status: %s" % k8s_pod_status)
+        logging.debug("Received k8s pod status: {0}".format(k8s_pod_status))
         juju_unit_status = build_juju_unit_status(k8s_pod_status)
-        logging.debug("Built unit status: %s" % juju_unit_status)
+        logging.debug("Built unit status: {0}".format(juju_unit_status))
         fw_adapter.set_unit_status(juju_unit_status)
         pod_is_ready = isinstance(juju_unit_status, ActiveStatus)
         time.sleep(1)

@@ -97,8 +97,7 @@ class PrometheusConfigFile:
 
 def build_juju_pod_spec(app_name,
                         charm_config,
-                        image_meta,
-                        prometheus_server_details=None):
+                        image_meta):
 
     external_labels = json.loads(charm_config['external-labels'])
     advertised_port = charm_config['advertised-port']

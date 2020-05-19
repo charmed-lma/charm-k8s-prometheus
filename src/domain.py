@@ -85,6 +85,6 @@ def build_juju_unit_status(pod_status):
     elif pod_status.is_running and not pod_status.is_ready:
         unit_status = MaintenanceStatus("Pod is getting ready")
     elif pod_status.is_running and pod_status.is_ready:
-        unit_status = ActiveStatus()
+        unit_status = ActiveStatus("Unit is ready")
 
     return unit_status

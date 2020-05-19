@@ -64,7 +64,6 @@ class Charm(CharmBase):
     # logic is moved away from this class.
 
     def on_config_changed(self, event):
-        self.prometheus.render_relation_data()
         on_config_changed_handler(event, self.fw_adapter)
 
     def on_start(self, event):
@@ -112,6 +111,10 @@ def on_upgrade_handler(event, fw_adapter):
 
 
 def build_pod_spec(fw_adapter):
+    if not fw_adapter.am_i_leader():
+        logging.debug("Unit is not a leader, skip pod spec configuration")
+        return
+
     logging.debug("Building Juju pod spec")
     juju_pod_spec = build_juju_pod_spec(
         app_name=fw_adapter.get_app_name(),

@@ -45,7 +45,6 @@ class Charm(CharmBase):
             self.on.start: self.on_start,
             self.on.config_changed: self.on_config_changed,
             self.on.upgrade_charm: self.on_upgrade,
-            self.prometheus.on.new_client: self.prometheus.new_client_handler
         }
         for event, handler in event_handler_bindings.items():
             self.fw_adapter.observe(event, handler)

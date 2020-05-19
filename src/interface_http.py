@@ -39,12 +39,10 @@ class PrometheusInterface(Object):
                 str(self.framework.model.config['advertised-port'])
         logging.debug('render-relation-data out')
 
-    def new_client_handler(self, event):
-        self.render_relation_data()
-
     def on_relation_joined(self, event):
         logging.debug("on-joined")
         if event.app not in self.state.apps:
             self.state.apps.append(event.app.name)
             logging.debug("emit new-client")
             self.on.new_client.emit(event.relation)
+        self.render_relation_data()

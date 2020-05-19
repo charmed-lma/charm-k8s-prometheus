@@ -67,7 +67,25 @@ started guide](https://prometheus.io/docs/prometheus/latest/getting_started/).
 Monitoring Kubernetes
 ---------------------
 
+To monitor the kubernetes cluster, deploy it with the following config option:
 
+    juju deploy . --resource prometheus-image=prom/prometheus:v2.18.1 \
+        --config monitor-k8s=true
+
+If the charm has already been deployed, you may also configure it at runtime:
+
+    juju config prometheus monitor-k8s=true
+
+WARNING: This second method is experimental and not yet fully supported and will
+require some manual intervention by sending a `SIGHUP` to the Prometheus process
+in the k8s pod. Do this by running the following after executing the `juju config`
+command:
+
+    kubectl -n lma exec <k8s-pod-name> -- kill -1 <prometheus-pid>
+
+Prometheus' PID in the pod is usually 1 but if you're not sure, run:
+
+    kubectl -n lma exec <k8s-pod-name> -- ps | grep /bin/prometheus | awk '{print $1}'
 
 
 Use Prometheus as a Grafana Datasource

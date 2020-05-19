@@ -101,40 +101,10 @@ def build_juju_pod_spec(app_name,
 
     external_labels = json.loads(charm_config['external-labels'])
     advertised_port = charm_config['advertised-port']
-
-    # This is the first pass at enabling the addition of more metrics to
-    # prometheus. For now these other metrics are hard coded but future
-    # commits will allow for operations teams to add arbitrary metrics.
-
-    prometheus_config = PrometheusConfigFile(
-        global_opts={
-            'scrape_interval': '15s',
-            'external_labels': external_labels
-        }
-    )
-    prometheus_config.add_scrape_config({
-        'job_name': 'prometheus',
-        'scrape_interval': '5s',
-        'static_configs': [{
-            'targets': [
-                f'localhost:{advertised_port}'
-            ]
-        }]
-    })
-    prometheus_config.add_scrape_config({
-        'job_name': 'kube-metrics-server',
-        'scrape_interval': '5s',
-        'metrics_path': '/metrics',
-        'tls_config': {
-            'insecure_skip_verify': True
-        },
-        'scheme': 'https',
-        'static_configs': [{
-            'targets': [
-                'metrics-server.kube-system.svc:443'
-            ]
-        }]
-    })
+    monitor_k8s = charm_config['monitor-k8s']
+    prom_config = build_prometheus_config(external_labels=external_labels,
+                                          advertised_port=advertised_port,
+                                          monitor_k8s=monitor_k8s)
 
     spec = PrometheusJujuPodSpec(
         app_name=app_name,
@@ -142,7 +112,7 @@ def build_juju_pod_spec(app_name,
         repo_username=image_meta.repo_username,
         repo_password=image_meta.repo_password,
         advertised_port=advertised_port,
-        prometheus_config=prometheus_config)
+        prometheus_config=prom_config)
 
     return spec
 
@@ -158,3 +128,31 @@ def build_juju_unit_status(pod_status):
         unit_status = ActiveStatus()
 
     return unit_status
+
+
+def build_prometheus_config(external_labels, advertised_port, monitor_k8s):
+    prometheus_config = PrometheusConfigFile(
+        global_opts={
+            'scrape_interval': '15s',
+            'external_labels': external_labels
+        }
+    )
+    prometheus_config.add_scrape_config({
+        'job_name': 'prometheus',
+        'scrape_interval': '5s',
+        'static_configs': [{
+            'targets': [
+                f'localhost:{advertised_port}'
+            ]
+        }]
+    })
+
+    if monitor_k8s:
+        with open('templates/prometheus-k8s.yml') as prom_yaml:
+            k8s_scrape_configs = \
+                yaml.safe_load(prom_yaml).get('scrape_configs', [])
+
+        for scrape_config in k8s_scrape_configs:
+            prometheus_config.add_scrape_config(scrape_config)
+
+    return prometheus_config

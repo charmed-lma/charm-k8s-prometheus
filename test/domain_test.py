@@ -36,7 +36,8 @@ class BuildJujuPodSpecTest(unittest.TestCase):
 
         mock_config = {
             'advertised-port': mock_advertised_port,
-            'external-labels': json.dumps(mock_external_labels)
+            'external-labels': json.dumps(mock_external_labels),
+            'monitor-k8s': False
         }
 
         mock_image_meta = ImageMeta({
@@ -100,20 +101,6 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                                         ]
                                     }
                                 ]
-                            },
-                            {
-                                'job_name': 'kube-metrics-server',
-                                'scrape_interval': '5s',
-                                'metrics_path': '/metrics',
-                                'tls_config': {
-                                    'insecure_skip_verify': True
-                                },
-                                'scheme': 'https',
-                                'static_configs': [{
-                                    'targets': [
-                                        'metrics-server.kube-system.svc:443'
-                                    ]
-                                }]
                             }
                         ]
                     })
@@ -208,3 +195,70 @@ class BuildJujuUnitStatusTest(unittest.TestCase):
 
         # Assertions
         assert type(juju_unit_status) == ActiveStatus
+
+
+class BuildPrometheusConfig(unittest.TestCase):
+
+    def test__it_does_not_add_the_kube_metrics_scrape_config(self):
+        mock_external_labels = str(uuid4())
+        mock_advertised_port = random.randint(1, 65535)
+        mock_prometheus_address = 'localhost:{}'.format(mock_advertised_port)
+
+        prometheus_config = domain.build_prometheus_config(
+            external_labels=mock_external_labels,
+            advertised_port=mock_advertised_port,
+            monitor_k8s=False
+        )
+
+        expected_config = {
+            'global': {
+                'scrape_interval': '15s',
+                'external_labels': mock_external_labels
+            },
+            'scrape_configs': [
+                {
+                    'job_name': 'prometheus',
+                    'scrape_interval': '5s',
+                    'static_configs': [
+                        {'targets': [mock_prometheus_address]}
+                    ]
+                }
+            ]
+        }
+
+        assert yaml.safe_load(prometheus_config.yaml_dump()) == expected_config
+
+    def test__it_adds_the_kube_metrics_scrape_config(self):
+        mock_external_labels = str(uuid4())
+        mock_advertised_port = random.randint(1, 65535)
+        mock_prometheus_address = 'localhost:{}'.format(mock_advertised_port)
+
+        prometheus_config = domain.build_prometheus_config(
+            external_labels=mock_external_labels,
+            advertised_port=mock_advertised_port,
+            monitor_k8s=True
+        )
+
+        expected_config = {
+            'global': {
+                'scrape_interval': '15s',
+                'external_labels': mock_external_labels
+            },
+            'scrape_configs': [
+                {
+                    'job_name': 'prometheus',
+                    'scrape_interval': '5s',
+                    'static_configs': [
+                        {'targets': [mock_prometheus_address]}
+                    ]
+                }
+            ]
+        }
+
+        with open('templates/prometheus-k8s.yml') as prom_yaml:
+            k8s_scrape_configs = yaml.safe_load(prom_yaml)['scrape_configs']
+
+        for scrape_config in k8s_scrape_configs:
+            expected_config['scrape_configs'].append(scrape_config)
+
+        assert yaml.safe_load(prometheus_config.yaml_dump()) == expected_config

@@ -48,6 +48,7 @@ class Charm(CharmBase):
             self.on.start: self.on_start,
             self.on.config_changed: self.on_config_changed,
             self.on.upgrade_charm: self.on_upgrade,
+            self.on.stop: self.on_stop,
         }
         for event, handler in event_handler_bindings.items():
             self.fw_adapter.observe(event, handler)
@@ -71,6 +72,9 @@ class Charm(CharmBase):
 
     def on_upgrade(self, event):
         on_upgrade_handler(event, self.fw_adapter)
+
+    def on_stop(self, event):
+        on_stop_handler(event, self.fw_adapter)
 
 
 # EVENT HANDLERS
@@ -108,6 +112,10 @@ def on_start_handler(event, fw_adapter):
 
 def on_upgrade_handler(event, fw_adapter):
     on_start_handler(event, fw_adapter)
+
+
+def on_stop_handler(event, fw_adapter):
+    fw_adapter.set_unit_status(MaintenanceStatus("Pod is terminating"))
 
 
 def build_pod_spec(fw_adapter):

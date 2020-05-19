@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import logging
+
 logger = logging.getLogger()
 import sys
 import time
+
 sys.path.append('lib')
 
 from ops.charm import (
@@ -21,6 +23,7 @@ from domain import (
 )
 from adapters import k8s
 from interface_http import PrometheusInterface
+
 
 # CHARM
 
@@ -80,6 +83,7 @@ class Charm(CharmBase):
 # coordinating domain models and services.
 
 def on_config_changed_handler(event, fw_adapter):
+    build_pod_spec(fw_adapter)
     juju_model = fw_adapter.get_model_name()
     juju_app = fw_adapter.get_app_name()
     juju_unit = fw_adapter.get_unit_name()
@@ -100,6 +104,14 @@ def on_config_changed_handler(event, fw_adapter):
 
 
 def on_start_handler(event, fw_adapter):
+    build_pod_spec(fw_adapter)
+
+
+def on_upgrade_handler(event, fw_adapter):
+    on_start_handler(event, fw_adapter)
+
+
+def build_pod_spec(fw_adapter):
     logging.debug("Building Juju pod spec")
     juju_pod_spec = build_juju_pod_spec(
         app_name=fw_adapter.get_app_name(),
@@ -110,10 +122,6 @@ def on_start_handler(event, fw_adapter):
     logging.debug("Configuring pod")
     fw_adapter.set_pod_spec(juju_pod_spec)
     fw_adapter.set_unit_status(MaintenanceStatus("Configuring pod"))
-
-
-def on_upgrade_handler(event, fw_adapter):
-    on_start_handler(event, fw_adapter)
 
 
 if __name__ == "__main__":

@@ -64,8 +64,12 @@ class OnConfigChangedHandlerTest(unittest.TestCase):
     @patch('charm.build_juju_unit_status', spec_set=True, autospec=True)
     @patch('charm.k8s', spec_set=True, autospec=True)
     @patch('charm.time', spec_set=True, autospec=True)
+    @patch('charm.build_juju_pod_spec', spec_set=True, autospec=True)
+    @patch('charm.build_pod_spec', spec_set=True, autospec=True)
     def test__it_blocks_until_pod_is_ready(
             self,
+            mock_pod_spec,
+            mock_juju_pod_spec,
             mock_time,
             mock_k8s_mod,
             mock_build_juju_unit_status_func):

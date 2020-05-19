@@ -131,7 +131,7 @@ def set_juju_pod_spec(fw_adapter):
     )
 
     logging.debug("Configuring pod")
-    fw_adapter.set_pod_spec(juju_pod_spec)
+    fw_adapter.set_pod_spec(juju_pod_spec.to_dict())
     fw_adapter.set_unit_status(MaintenanceStatus("Configuring pod"))
 
 

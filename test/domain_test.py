@@ -52,8 +52,8 @@ class BuildJujuPodSpecTest(unittest.TestCase):
             image_meta=mock_image_meta)
 
         # Assertions
-        assert type(juju_pod_spec) == dict
-        assert juju_pod_spec == {'containers': [{
+        assert isinstance(juju_pod_spec, domain.PrometheusJujuPodSpec)
+        assert juju_pod_spec.to_dict() == {'containers': [{
             'name': mock_app_name,
             'imageDetails': {
                 'imagePath': mock_image_meta.image_path,
@@ -100,6 +100,20 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                                         ]
                                     }
                                 ]
+                            },
+                            {
+                                'job_name': 'kube-metrics-server',
+                                'scrape_interval': '5s',
+                                'metrics_path': '/metrics',
+                                'tls_config': {
+                                    'insecure_skip_verify': True
+                                },
+                                'scheme': 'https',
+                                'static_configs': [{
+                                    'targets': [
+                                        'metrics-server.kube-system.svc:443'
+                                    ]
+                                }]
                             }
                         ]
                     })

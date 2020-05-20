@@ -86,7 +86,7 @@ class Charm(CharmBase):
 # coordinating domain models and services.
 
 def on_config_changed_handler(event, fw_adapter):
-    build_pod_spec(fw_adapter)
+    set_juju_pod_spec(fw_adapter)
     juju_model = fw_adapter.get_model_name()
     juju_app = fw_adapter.get_app_name()
     juju_unit = fw_adapter.get_unit_name()
@@ -107,7 +107,7 @@ def on_config_changed_handler(event, fw_adapter):
 
 
 def on_start_handler(event, fw_adapter):
-    build_pod_spec(fw_adapter)
+    set_juju_pod_spec(fw_adapter)
 
 
 def on_upgrade_handler(event, fw_adapter):
@@ -118,7 +118,7 @@ def on_stop_handler(event, fw_adapter):
     fw_adapter.set_unit_status(MaintenanceStatus("Pod is terminating"))
 
 
-def build_pod_spec(fw_adapter):
+def set_juju_pod_spec(fw_adapter):
     if not fw_adapter.am_i_leader():
         logging.debug("Unit is not a leader, skip pod spec configuration")
         return

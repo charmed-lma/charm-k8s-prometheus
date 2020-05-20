@@ -28,6 +28,7 @@ from adapters import (
     framework,
 )
 import charm
+import domain
 
 
 class CharmTest(unittest.TestCase):
@@ -114,6 +115,9 @@ class OnStartHandlerTest(unittest.TestCase):
         mock_event_cls = create_autospec(EventBase, spec_set=True)
         mock_event = mock_event_cls.return_value
 
+        mock_prom_juju_pod_spec = create_autospec(domain.PrometheusJujuPodSpec)
+        mock_build_juju_pod_spec_func.return_value = mock_prom_juju_pod_spec
+
         # Exercise
         charm.on_start_handler(mock_event, mock_fw)
 
@@ -126,7 +130,7 @@ class OnStartHandlerTest(unittest.TestCase):
 
         assert mock_fw.set_pod_spec.call_count == 1
         assert mock_fw.set_pod_spec.call_args == \
-            call(mock_build_juju_pod_spec_func.return_value)
+            call(mock_prom_juju_pod_spec.to_dict())
 
         assert mock_fw.set_unit_status.call_count == 1
         args, kwargs = mock_fw.set_unit_status.call_args_list[0]

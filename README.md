@@ -19,7 +19,7 @@ Quick Start
 git submodule update --init --recursive
 sudo snap install juju --classic
 sudo snap install microk8s --classic
-sudo microk8s.enable dns dashboard registry storage
+sudo microk8s.enable dns dashboard registry storage metrics-server
 sudo usermod -a -G microk8s $(whoami)
 ```
 
@@ -35,7 +35,7 @@ Optional: Grab coffee/beer/tea or do a 5k run. Once the above is done, do:
 ```
 juju create-storage-pool operator-storage kubernetes storage-class=microk8s-hostpath
 juju add-model lma
-juju deploy . --resource prometheus-image=prom/prometheus:latest
+juju deploy . --resource prometheus-image=prom/prometheus:v2.18.1
 ```
 
 Wait until `juju status` shows that the prometheus app has a status of active.
@@ -46,13 +46,14 @@ Preview the Prometheus GUI
 
 Run:
 
-    kubectl -n lma port-forward svc/prometheus 9090:9090
+    juju config prometheus juju-external-hostname=localhost
+    juju expose prometheus
+
+Now browse to http://<prometheus-juju-app-address>:9090/
 
 The above assumes you're using the default value for `advertised-port`. If
 you customized this value from 9090 to some other value, change the command
 above accordingly.
-
-Now browse to http://localhost:9090/
 
 The default prometheus.yml includes a configuration that scrapes metrics
 from Prometheus itself. Execute the following query to show TSDB stats:
@@ -61,6 +62,30 @@ from Prometheus itself. Execute the following query to show TSDB stats:
 
 For more info on getting started with Prometheus see [its official getting
 started guide](https://prometheus.io/docs/prometheus/latest/getting_started/).
+
+
+Monitoring Kubernetes
+---------------------
+
+To monitor the kubernetes cluster, deploy it with the following config option:
+
+    juju deploy . --resource prometheus-image=prom/prometheus:v2.18.1 \
+        --config monitor-k8s=true
+
+If the charm has already been deployed, you may also configure it at runtime:
+
+    juju config prometheus monitor-k8s=true
+
+WARNING: This second method is experimental and not yet fully supported and will
+require some manual intervention by sending a `SIGHUP` to the Prometheus process
+in the k8s pod. Do this by running the following after executing the `juju config`
+command:
+
+    kubectl -n lma exec <k8s-pod-name> -- kill -1 <prometheus-pid>
+
+Prometheus' PID in the pod is usually 1 but if you're not sure, run:
+
+    kubectl -n lma exec <k8s-pod-name> -- ps | grep /bin/prometheus | awk '{print $1}'
 
 
 Use Prometheus as a Grafana Datasource

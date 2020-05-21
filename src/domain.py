@@ -100,7 +100,12 @@ def build_juju_pod_spec(app_name,
                         image_meta):
 
     external_labels = json.loads(charm_config['external-labels'])
-    advertised_port = charm_config['advertised-port']
+
+    # There is never ever a need to customize the advertised port of a
+    # containerized Prometheus instance so we are removing that config
+    # option and making it statically default to its typical 9090
+    advertised_port = 9090
+
     monitor_k8s = charm_config['monitor-k8s']
     prom_config = build_prometheus_config(external_labels=external_labels,
                                           advertised_port=advertised_port,
@@ -137,12 +142,14 @@ def build_prometheus_config(external_labels, advertised_port, monitor_k8s):
             'external_labels': external_labels
         }
     )
+
+    # Scrape its own metrics
     prometheus_config.add_scrape_config({
         'job_name': 'prometheus',
         'scrape_interval': '5s',
         'static_configs': [{
             'targets': [
-                f'localhost:{advertised_port}'
+                'localhost:{}'.format(advertised_port)
             ]
         }]
     })

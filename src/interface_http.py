@@ -32,8 +32,7 @@ class PrometheusInterface(Object):
     def render_relation_data(self):
         logging.debug('render-relation-data in')
         for relation in self.model.relations[self.relation_name]:
-            relation.data[self.model.unit]['prometheus-port'] = \
-                str(self.framework.model.config['advertised-port'])
+            relation.data[self.model.unit]['prometheus-port'] = '9090'
         logging.debug('render-relation-data out')
 
     def on_relation_joined(self, event):

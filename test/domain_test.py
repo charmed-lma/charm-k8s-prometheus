@@ -27,7 +27,6 @@ class BuildJujuPodSpecTest(unittest.TestCase):
         # Set up
         mock_app_name = f'{uuid4()}'
 
-        mock_advertised_port = random.randint(1, 65535)
         mock_external_labels = {
             f"{uuid4()}": f"{uuid4()}",
             f"{uuid4()}": f"{uuid4()}",
@@ -35,7 +34,6 @@ class BuildJujuPodSpecTest(unittest.TestCase):
         }
 
         mock_config = {
-            'advertised-port': mock_advertised_port,
             'external-labels': json.dumps(mock_external_labels),
             'monitor-k8s': False
         }
@@ -62,13 +60,13 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                 'password': mock_image_meta.repo_password
             },
             'ports': [{
-                'containerPort': mock_config['advertised-port'],
+                'containerPort': 9090,
                 'protocol': 'TCP'
             }],
             'readinessProbe': {
                 'httpGet': {
                     'path': '/-/ready',
-                    'port': mock_config['advertised-port']
+                    'port': 9090
                 },
                 'initialDelaySeconds': 10,
                 'timeoutSeconds': 30
@@ -76,7 +74,7 @@ class BuildJujuPodSpecTest(unittest.TestCase):
             'livenessProbe': {
                 'httpGet': {
                     'path': '/-/healthy',
-                    'port': mock_config['advertised-port']
+                    'port': 9090
                 },
                 'initialDelaySeconds': 30,
                 'timeoutSeconds': 30
@@ -97,7 +95,7 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                                 'static_configs': [
                                     {
                                         'targets': [
-                                            f'localhost:{mock_advertised_port}'
+                                            'localhost:9090'
                                         ]
                                     }
                                 ]

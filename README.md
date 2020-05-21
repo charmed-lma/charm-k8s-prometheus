@@ -51,10 +51,6 @@ Run:
 
 Now browse to http://<prometheus-juju-app-address>:9090/
 
-The above assumes you're using the default value for `advertised-port`. If
-you customized this value from 9090 to some other value, change the command
-above accordingly.
-
 The default prometheus.yml includes a configuration that scrapes metrics
 from Prometheus itself. Execute the following query to show TSDB stats:
 

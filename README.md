@@ -19,7 +19,7 @@ Quick Start
 git submodule update --init --recursive
 sudo snap install juju --classic
 sudo snap install microk8s --classic
-sudo microk8s.enable dns dashboard registry storage metrics-server
+sudo microk8s.enable dns dashboard registry storage metrics-server ingress
 sudo usermod -a -G microk8s $(whoami)
 ```
 
@@ -44,12 +44,23 @@ Wait until `juju status` shows that the prometheus app has a status of active.
 Preview the Prometheus GUI
 --------------------------
 
+Add the following entry to your machine's `/etc/hosts` file:
+
+    <microk8s-host-ip>	prometheus.local
+
 Run:
 
-    juju config prometheus juju-external-hostname=localhost
+    juju config prometheus juju-external-hostname=prometheus.local
     juju expose prometheus
 
-Now browse to http://<prometheus-juju-app-address>:9090/
+Now browse to http://prometheus.local.
+
+> A NOTE ABOUT THE EXTERNAL HOSTNAME: If you are using a k8s distribution
+> other than microk8s, you need to ensure that there is an LB sitting in
+> front of the k8s nodes and that you use that LB's IP address in place of
+> `<microk8s-host-ip>`. Alternatively, instead of adding a static entry in
+> `/etc/hosts` such as above, you may use an FQDN as the value to
+> `juju-external-hostname`.
 
 The default prometheus.yml includes a configuration that scrapes metrics
 from Prometheus itself. Execute the following query to show TSDB stats:

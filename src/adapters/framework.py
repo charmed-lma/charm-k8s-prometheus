@@ -31,7 +31,8 @@ class ResourceError(ModelError):
 
     def __init__(self, resource_name, message):
         super().__init__(resource_name)
-        self.status = BlockedStatus(f'{resource_name}: {message}')
+        message = '{}: {}'.format(resource_name, message)
+        self.status = BlockedStatus(message)
 
 
 # SERVICES
@@ -39,17 +40,20 @@ class ResourceError(ModelError):
 def _fetch_image_meta(image_name, resources_repo):
     path = resources_repo.fetch(image_name)
     if not path.exists():
-        raise ResourceError(image_name, f'Resource not found at {str(path)})')
+        msg = 'Resource not found at {})'.format(path)
+        raise ResourceError(image_name, msg)
 
     resource_yaml = path.read_text()
 
     if not resource_yaml:
-        raise ResourceError(image_name, f'Resource unreadable at {str(path)})')
+        msg = 'Resource unreadable at {})'.format(path)
+        raise ResourceError(image_name, msg)
 
     try:
         resource_dict = yaml.safe_load(resource_yaml)
     except yaml.error.YAMLError:
-        raise ResourceError(image_name, f'Invalid YAML at {str(path)})')
+        msg = 'Invalid YAML at {})'.format(path)
+        raise ResourceError(image_name, msg)
     else:
         return ImageMeta(resource_dict=resource_dict)
 

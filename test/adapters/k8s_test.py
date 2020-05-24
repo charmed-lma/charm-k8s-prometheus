@@ -78,7 +78,7 @@ class APIServerTest(unittest.TestCase):
             mock_ssl_context_cls,
             mock_open):
         # Setup
-        mock_token = f'{uuid4()}'
+        mock_token = str(uuid4())
         mock_token_file = io.StringIO(mock_token)
         mock_open.return_value = mock_token_file
         mock_response_dict = {}

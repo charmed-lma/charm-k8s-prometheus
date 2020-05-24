@@ -25,12 +25,12 @@ class BuildJujuPodSpecTest(unittest.TestCase):
 
     def test__pod_spec_is_generated(self):
         # Set up
-        mock_app_name = f'{uuid4()}'
+        mock_app_name = str(uuid4())
 
         mock_external_labels = {
-            f"{uuid4()}": f"{uuid4()}",
-            f"{uuid4()}": f"{uuid4()}",
-            f"{uuid4()}": f"{uuid4()}",
+            str(uuid4()): str(uuid4()),
+            str(uuid4()): str(uuid4()),
+            str(uuid4()): str(uuid4()),
         }
 
         mock_config = {

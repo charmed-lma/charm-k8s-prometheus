@@ -158,7 +158,8 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                                     }
                                 ]
                             }
-                        ]
+                        ],
+                        'alerting': {}
                     })
                 }
             }]
@@ -316,7 +317,8 @@ class BuildPrometheusConfig(unittest.TestCase):
                         }
                     ]
                 }
-            ]
+            ],
+            'alerting': {}
         }
 
         self.assertEqual(
@@ -349,7 +351,8 @@ class BuildPrometheusConfig(unittest.TestCase):
                         }
                     ]
                 }
-            ]
+            ],
+            'alerting': {}
         }
 
         with open('templates/prometheus-k8s.yml') as prom_yaml:

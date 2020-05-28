@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import logging
 
 logger = logging.getLogger()
@@ -24,6 +25,7 @@ from domain import (
 )
 from adapters import k8s
 from exceptions import CharmError
+from interface_alertmanager import AlertManagerInterface
 from interface_http import PrometheusInterface
 
 
@@ -46,13 +48,15 @@ class Charm(CharmBase):
         # adapter and not directly with the framework.
         self.fw_adapter = FrameworkAdapter(self.framework)
         self.prometheus = PrometheusInterface(self, 'http-api')
-
+        self.alertmanager = AlertManagerInterface(self, 'alertmanager')
         # Bind event handlers to events
         event_handler_bindings = {
             self.on.start: self.on_start,
             self.on.config_changed: self.on_config_changed,
             self.on.upgrade_charm: self.on_upgrade,
             self.on.stop: self.on_stop,
+            self.alertmanager.on.new_relation:
+                self.on_new_alertmanager_relation
         }
         for event, handler in event_handler_bindings.items():
             self.fw_adapter.observe(event, handler)
@@ -72,6 +76,9 @@ class Charm(CharmBase):
 
     def on_config_changed(self, event):
         on_config_changed_handler(event, self.fw_adapter, self._stored)
+
+    def on_new_alertmanager_relation(self, event):
+        on_new_alertmanager_relation_handler(event, self.fw_adapter)
 
     def on_start(self, event):
         on_start_handler(event, self.fw_adapter)
@@ -113,6 +120,11 @@ def on_config_changed_handler(event, fw_adapter, state):
         time.sleep(1)
 
 
+def on_new_alertmanager_relation_handler(event, fw_adapter):
+    alerting_config = json.loads(event.data.get('alerting_config', '{}'))
+    set_juju_pod_spec(fw_adapter, alerting_config)
+
+
 def on_start_handler(event, fw_adapter):
     set_juju_pod_spec(fw_adapter)
 
@@ -125,17 +137,24 @@ def on_stop_handler(event, fw_adapter):
     fw_adapter.set_unit_status(MaintenanceStatus("Pod is terminating"))
 
 
-def set_juju_pod_spec(fw_adapter):
-    if not fw_adapter.am_i_leader():
+def set_juju_pod_spec(fw_adapter, alerting_config={}):
+    if not fw_adapter.unit_is_leader():
         logging.debug("Unit is not a leader, skip pod spec configuration")
         return
+
+    if alerting_config:
+        logger.debug(
+            "Got alerting config: {} {}".format(type(alerting_config),
+                                                alerting_config)
+        )
 
     logging.debug("Building Juju pod spec")
     try:
         juju_pod_spec = build_juju_pod_spec(
             app_name=fw_adapter.get_app_name(),
             charm_config=fw_adapter.get_config(),
-            image_meta=fw_adapter.get_image_meta('prometheus-image')
+            image_meta=fw_adapter.get_image_meta('prometheus-image'),
+            alerting_config=alerting_config
         )
     except CharmError as e:
         fw_adapter.set_unit_status(

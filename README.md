@@ -102,6 +102,81 @@ Refer to the [Grafana Operator](https://github.com/relaxdiego/charm-k8s-grafana)
 Quick Start guide to learn how to use Prometheus with Grafana.
 
 
+Preparing Your Workstation for Local Development
+------------------------------------------------
+
+1. Install pyenv so that you can test with different versions of Python
+
+    curl -L https://raw.githubusercontent.com/yyuu/pyenv-installer/master/bin/pyenv-installer | bash
+
+2. Append the following to your ~/.bashrc then log out and log back in
+
+    export PATH="/home/mark/.pyenv/bin:$PATH"
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+
+3. Install development packages. These are needed by pyenv to compile Python
+
+    sudo apt install build-essential libssl-dev zlib1g-dev libbz2-dev \
+    libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
+    xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git
+
+4. Install Python 3.6.x and 3.7.x
+
+    NOTE: Replace X with the correct minor version as shown in `pyenv install --list`
+
+    pyenv install 3.5.X
+    pyenv install 3.6.X
+    pyenv install 3.7.X
+
+5. Test by cd-ing in and out of your working directory
+
+    ~/charm-k8s-prometheus $ python --version
+    Python 3.7.7
+    ~ $ cd ..
+    ~ $ python --version
+    Python 3.6.9
+    ~ $ cd -
+    ~/charm-k8s-prometheus $ python --version
+    Python 3.7.7
+
+6. Test if tox is able to run tests against all declared environments
+
+    tox
+
+
+If You Want More Control Over Your Python Environments
+------------------------------------------------------
+
+1. Install venv and virtualenvwrapper
+
+    sudo apt install python3-venv
+    pip3 install virtualenvwrapper
+
+2. Append the following to your ~/.bashrc, then log out and log back in
+
+    export WORKON_HOME=$HOME/.virtualenvs
+    source $(which virtualenvwrapper.sh)
+
+3. Make two virtualenvs that you can quickly switch between for testing
+
+   pyenv virtualenv --python $(pyenv which python3.6) charm-k8s-prometheus-py35
+   pyenv virtualenv --python $(pyenv which python3.6) charm-k8s-prometheus-py36
+   pyenv virtualenv --python $(pyenv which python3.7) charm-k8s-prometheus-py37
+
+4. Activate any one of them
+
+   pyenv activate charm-k8s-prometheus-py36
+
+5. Install the dependencies in the virtualenv
+
+   pip3 install -r test-requirements.txt
+
+6. Deactivate to leave the virtual environment
+
+    pyenv deactivate
+
+
 Running the Unit Tests on Your Workstation
 ------------------------------------------
 

@@ -8,8 +8,8 @@ import ssl
 def get_pod_status(juju_model, juju_app, juju_unit):
     namespace = juju_model
 
-    path = f'/api/v1/namespaces/{namespace}/pods?' \
-           f'labelSelector=juju-app={juju_app}'
+    path = '/api/v1/namespaces/{}/pods?' \
+           'labelSelector=juju-app={}'.format(namespace, juju_app)
 
     api_server = APIServer()
     response = api_server.get(path)
@@ -45,12 +45,12 @@ class APIServer:
             '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
 
         headers = {
-            'Authorization': f'Bearer {kube_token}'
+            'Authorization': 'Bearer {}'.format(kube_token)
         }
 
         host = 'kubernetes.default.svc'
-        conn = http.client.HTTPSConnection(f'{host}', context=ssl_context)
-        logger.debug(f"{method} {host}/{path}")
+        conn = http.client.HTTPSConnection(host, context=ssl_context)
+        logger.debug("{} {}/{}".format(method, host, path))
         conn.request(method=method, url=path, headers=headers)
 
         return json.loads(conn.getresponse().read())

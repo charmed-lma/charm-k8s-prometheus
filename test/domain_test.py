@@ -21,9 +21,61 @@ from adapters.framework import (
 )
 
 
-class BuildJujuPodSpecTest(unittest.TestCase):
+def get_default_charm_config():
+    return {
+        'external-labels': '',
+        'monitor-k8s': False,
+        'log-level': '',
+        'additional-cli-args': None,
+        'web-enable-admin-api': False,
+        'web-page-title': 'PrometheusTest',
+        'web-max-connections': 512,
+        'web-read-timeout': '5m',
+        'tsdb-retention-time': '18d',
+        'tsdb-wal-compression': True,
+        'alertmanager-notification-queue-capacity': 10000,
+        'alertmanager-timeout': '10s',
+    }
 
-    def test__pod_spec_is_generated(self):
+
+class PrometheusCLIArgumentsTest(unittest.TestCase):
+    @staticmethod
+    def test__cli_args_are_rendered_correctly():
+        # mock_config = self.default_mock_config
+        config = get_default_charm_config()
+        mock_args_config = domain.build_prometheus_cli_args(config)
+        expected_cli_args = [
+            '--config.file=/etc/prometheus/prometheus.yml',
+            '--storage.tsdb.path=/prometheus',
+            '--web.enable-lifecycle',
+            '--web.console.templates=/usr/share/prometheus/consoles',
+            '--web.console.libraries=/usr/share/prometheus/console_libraries',
+            '--log.level=info',
+            '--web.page-title="PrometheusTest"',
+            '--storage.tsdb.wal-compression',
+            '--web.max-connections=512',
+            '--storage.tsdb.retention.time=18d',
+            '--alertmanager.notification-queue-capacity=10000',
+            '--alertmanager.timeout=10s'
+        ]
+
+        assert mock_args_config == expected_cli_args
+
+        # Test unexpected log-level config option
+        config['log-level'] = 'SomeUnexpectedValue'
+        expected_cli_args[5] = '--log.level=debug'
+        mock_args_config = domain.build_prometheus_cli_args(config)
+        assert mock_args_config == expected_cli_args
+
+        # Test non-empty valid log-level config option
+        config['log-level'] = 'debug'
+        mock_args_config = domain.build_prometheus_cli_args(config)
+        assert mock_args_config == expected_cli_args
+
+
+class BuildJujuPodSpecTest(unittest.TestCase):
+    @staticmethod
+    def test__pod_spec_is_generated():
         # Set up
         mock_app_name = str(uuid4())
 
@@ -33,16 +85,16 @@ class BuildJujuPodSpecTest(unittest.TestCase):
             str(uuid4()): str(uuid4()),
         }
 
-        mock_config = {
-            'external-labels': json.dumps(mock_external_labels),
-            'monitor-k8s': False
-        }
+        mock_config = get_default_charm_config()
+        mock_config['external-labels'] = json.dumps(mock_external_labels)
 
         mock_image_meta = ImageMeta({
             'registrypath': str(uuid4()),
             'username': str(uuid4()),
             'password': str(uuid4()),
         })
+
+        mock_args_config = domain.build_prometheus_cli_args(mock_config)
 
         # Exercise
         juju_pod_spec = domain.build_juju_pod_spec(
@@ -59,6 +111,7 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                 'username': mock_image_meta.repo_username,
                 'password': mock_image_meta.repo_password
             },
+            'args': mock_args_config,
             'ports': [{
                 'containerPort': 9090,
                 'protocol': 'TCP'

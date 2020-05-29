@@ -1,6 +1,9 @@
 import copy
 import json
 import yaml
+import logging
+
+logger = logging.getLogger()
 
 import sys
 sys.path.append('lib')
@@ -8,6 +11,7 @@ sys.path.append('lib')
 from ops.model import (
     ActiveStatus,
     MaintenanceStatus,
+    BlockedStatus
 )
 
 
@@ -21,6 +25,7 @@ class PrometheusJujuPodSpec:
                  repo_username,
                  repo_password,
                  advertised_port,
+                 prometheus_cli_args,
                  prometheus_config):
 
         self._prometheus_config = prometheus_config
@@ -32,6 +37,7 @@ class PrometheusJujuPodSpec:
                     'username': repo_username,
                     'password': repo_password
                 },
+                'args': prometheus_cli_args,
                 'ports': [{
                     'containerPort': advertised_port,
                     'protocol': 'TCP'
@@ -95,6 +101,85 @@ class PrometheusConfigFile:
 # More stateless functions. This group is purely business logic that take
 # simple values or data structures and produce new values from them.
 
+def build_prometheus_cli_args(charm_config):
+    """
+    This function is taking the default Prometheus CLI args
+    (https://github.com/prometheus/prometheus/blob/master/Dockerfile#L26)
+    which we can consider as immutable, and adding some more tunables
+    from the charm config options.
+
+    Additionally, a "--web.enable-lifecycle" flag (which is disabled
+    by default) has been added in order to enable live config reload option
+    using HTTP call.
+
+    :param charm_config: A fw_adapter.get_config() dict instance.
+    """
+
+    prometheus_cli_args = [
+        "--config.file=/etc/prometheus/prometheus.yml",
+        "--storage.tsdb.path=/prometheus",
+        "--web.enable-lifecycle",
+        "--web.console.templates=/usr/share/prometheus/consoles",
+        "--web.console.libraries=/usr/share/prometheus/console_libraries"
+    ]
+
+    if charm_config.get('log-level'):
+        log_level = charm_config['log-level'].lower()
+        allowed_log_levels = ['debug', 'info', 'warn', 'error', 'fatal']
+        if log_level not in allowed_log_levels:
+            logging.error(
+                "Invalid loglevel: {0} given, {1} allowed. Falling "
+                "back to DEBUG loglevel.".format(
+                    log_level, "/".join(allowed_log_levels)
+                )
+            )
+            log_level = "debug"
+    else:
+        # fallback to the default option
+        log_level = 'info'
+
+    prometheus_cli_args.append(
+        "--log.level={0}".format(log_level)
+    )
+
+    if charm_config['web-enable-admin-api']:
+        prometheus_cli_args.append("--web.enable-admin-api")
+
+    if charm_config['web-page-title']:
+        # TODO: Some validation/sanitization?
+        prometheus_cli_args.append(
+            "--web.page-title=\"{0}\"".format(
+                charm_config['web-page-title']
+            )
+        )
+
+    if charm_config['tsdb-wal-compression']:
+        prometheus_cli_args.append(
+            "--storage.tsdb.wal-compression"
+        )
+
+    kv_config = {
+        'web-max-connections': 'web.max-connections',
+        'tsdb-retention-time': 'storage.tsdb.retention.time',
+        'alertmanager-notification-queue-capacity':
+            'alertmanager.notification-queue-capacity',
+        'alertmanager-timeout': 'alertmanager.timeout'
+    }
+
+    for key, value in kv_config.items():
+        if charm_config.get(key):
+            prometheus_cli_args.append(
+                "--{0}={1}".format(
+                    value, charm_config[key]
+                )
+            )
+
+    logger.debug("Rendered CLI args: {0}".format(
+        ' '.join(prometheus_cli_args))
+    )
+    return prometheus_cli_args
+
+
 def build_juju_pod_spec(app_name,
                         charm_config,
                         image_meta):
@@ -117,6 +202,7 @@ def build_juju_pod_spec(app_name,
         repo_username=image_meta.repo_username,
         repo_password=image_meta.repo_password,
         advertised_port=advertised_port,
+        prometheus_cli_args=build_prometheus_cli_args(charm_config),
         prometheus_config=prom_config)
 
     return spec
@@ -131,6 +217,13 @@ def build_juju_unit_status(pod_status):
         unit_status = MaintenanceStatus("Pod is getting ready")
     elif pod_status.is_running and pod_status.is_ready:
         unit_status = ActiveStatus()
+    else:
+        # Covering a "variable referenced before assignment" linter error
+        unit_status = BlockedStatus(
+            "Error: Unexpected pod_status received: {0}".format(
+                pod_status.raw_status
+            )
+        )
 
     return unit_status
 

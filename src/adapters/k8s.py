@@ -85,3 +85,7 @@ class PodStatus:
     @property
     def is_unknown(self):
         return not self._status
+
+    @property
+    def raw_status(self):
+        return self._status

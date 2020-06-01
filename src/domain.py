@@ -14,9 +14,16 @@ from ops.model import (
     BlockedStatus
 )
 
+from exceptions import ExternalLabelParseError, TimeStringParseError
+
+
+# There is never ever a need to customize the advertised port of a
+# containerized Prometheus instance so we are removing that config
+# option and making it statically default to its typical 9090
+PROMETHEUS_ADVERTISED_PORT = 9090
+
 
 # DOMAIN MODELS
-
 class PrometheusJujuPodSpec:
 
     def __init__(self,
@@ -184,24 +191,18 @@ def build_juju_pod_spec(app_name,
                         charm_config,
                         image_meta):
 
-    external_labels = json.loads(charm_config['external-labels'])
-
     # There is never ever a need to customize the advertised port of a
     # containerized Prometheus instance so we are removing that config
     # option and making it statically default to its typical 9090
-    advertised_port = 9090
 
-    monitor_k8s = charm_config['monitor-k8s']
-    prom_config = build_prometheus_config(external_labels=external_labels,
-                                          advertised_port=advertised_port,
-                                          monitor_k8s=monitor_k8s)
+    prom_config = build_prometheus_config(charm_config)
 
     spec = PrometheusJujuPodSpec(
         app_name=app_name,
         image_path=image_meta.image_path,
         repo_username=image_meta.repo_username,
         repo_password=image_meta.repo_password,
-        advertised_port=advertised_port,
+        advertised_port=PROMETHEUS_ADVERTISED_PORT,
         prometheus_cli_args=build_prometheus_cli_args(charm_config),
         prometheus_config=prom_config)
 
@@ -228,12 +229,96 @@ def build_juju_unit_status(pod_status):
     return unit_status
 
 
-def build_prometheus_config(external_labels, advertised_port, monitor_k8s):
+def validate_and_parse_external_labels(raw_labels):
+    """
+    Determines, if the input variable can be safely injected into the
+    Prometheus config (input variable should be a dict, containing ONLY the
+    strings as its values).
+
+    :param raw_labels: Charm 'external-labels' config option.
+    """
+    ERROR_MESSAGE = "external-labels malformed JSON"
+
+    if not raw_labels:  # empty string
+        return {}
+
+    try:
+        parsed_labels = json.loads(raw_labels)
+    except (ValueError, TypeError):
+        raise ExternalLabelParseError(
+            "{0}: {1}".format(ERROR_MESSAGE, raw_labels)
+        )
+
+    if not isinstance(parsed_labels, dict):
+        raise ExternalLabelParseError(
+            "{0}: expected dict, got {1}".format(
+                ERROR_MESSAGE, type(parsed_labels)
+            )
+        )
+
+    for key, value in parsed_labels.items():
+        if not isinstance(key, str):
+            raise ExternalLabelParseError(
+                "{0}: external-labels.{1} key has to be str, {2} got".format(
+                    ERROR_MESSAGE, key, type(key)
+                )
+            )
+        if not isinstance(value, str):
+            raise ExternalLabelParseError(
+                "{0}: external-labels.{1} value has to be str, {2} got".format(
+                    ERROR_MESSAGE, key, type(value)
+                )
+            )
+
+    return parsed_labels
+
+
+def validate_and_parse_time_values(key, value):
+    def abort():
+        msg = "Invalid time definition for key {0} - got: {1}".format(
+            key, value
+        )
+        logger.error(msg)
+        raise TimeStringParseError(msg)
+
+    if not value:
+        abort()
+
+    time, unit = value[:-1], value[-1]
+
+    if unit not in ['y', 'w', 'd', 'h', 'm', 's', 'ms']:
+        logger.error("wrong unit")
+        abort()
+
+    try:
+        int(time)
+    except ValueError:
+        logger.error("cannot convert time to int")
+        abort()
+
+    return value
+
+
+def build_prometheus_config(charm_config):
+    prometheus_global_opts = {
+        'external_labels': validate_and_parse_external_labels(
+            charm_config['external-labels']
+        )
+    }
+
+    time_config_values = {
+        'scrape-interval': 'scrape_interval',
+        'scrape-timeout': 'scrape_timeout',
+        'evaluation-interval': 'evaluation_interval'
+    }
+
+    for key, value in time_config_values.items():
+        prometheus_global_opts[value] = validate_and_parse_time_values(
+            key, charm_config.get(key)
+        )
+
     prometheus_config = PrometheusConfigFile(
-        global_opts={
-            'scrape_interval': '15s',
-            'external_labels': external_labels
-        }
+        global_opts=prometheus_global_opts
     )
 
     # Scrape its own metrics
@@ -242,12 +327,12 @@ def build_prometheus_config(external_labels, advertised_port, monitor_k8s):
         'scrape_interval': '5s',
         'static_configs': [{
             'targets': [
-                'localhost:{}'.format(advertised_port)
+                'localhost:{}'.format(PROMETHEUS_ADVERTISED_PORT)
             ]
         }]
     })
 
-    if monitor_k8s:
+    if charm_config.get('monitor-k8s'):
         with open('templates/prometheus-k8s.yml') as prom_yaml:
             k8s_scrape_configs = \
                 yaml.safe_load(prom_yaml).get('scrape_configs', [])

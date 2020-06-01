@@ -14,14 +14,16 @@ from ops.main import main
 from ops.model import (
     ActiveStatus,
     MaintenanceStatus,
+    BlockedStatus
 )
-
+from ops.framework import StoredState
 from adapters.framework import FrameworkAdapter
 from domain import (
     build_juju_pod_spec,
     build_juju_unit_status,
 )
 from adapters import k8s
+from exceptions import CharmError
 from interface_http import PrometheusInterface
 
 
@@ -33,6 +35,7 @@ from interface_http import PrometheusInterface
 
 
 class Charm(CharmBase):
+    _stored = StoredState()
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -43,6 +46,7 @@ class Charm(CharmBase):
         # adapter and not directly with the framework.
         self.fw_adapter = FrameworkAdapter(self.framework)
         self.prometheus = PrometheusInterface(self, 'http-api')
+
         # Bind event handlers to events
         event_handler_bindings = {
             self.on.start: self.on_start,
@@ -52,6 +56,8 @@ class Charm(CharmBase):
         }
         for event, handler in event_handler_bindings.items():
             self.fw_adapter.observe(event, handler)
+
+        self._stored.set_default(is_started=False)
 
     # DELEGATORS
 
@@ -65,7 +71,7 @@ class Charm(CharmBase):
     # logic is moved away from this class.
 
     def on_config_changed(self, event):
-        on_config_changed_handler(event, self.fw_adapter)
+        on_config_changed_handler(event, self.fw_adapter, self._stored)
 
     def on_start(self, event):
         on_start_handler(event, self.fw_adapter)
@@ -85,7 +91,7 @@ class Charm(CharmBase):
 # similar to controllers in an MVC app in that they are only concerned with
 # coordinating domain models and services.
 
-def on_config_changed_handler(event, fw_adapter):
+def on_config_changed_handler(event, fw_adapter, state):
     set_juju_pod_spec(fw_adapter)
     juju_model = fw_adapter.get_model_name()
     juju_app = fw_adapter.get_app_name()
@@ -93,6 +99,7 @@ def on_config_changed_handler(event, fw_adapter):
 
     pod_is_ready = False
 
+    # TODO: Fail by timeout, if pod will never go to the Ready state?
     while not pod_is_ready:
         logging.debug("Checking k8s pod readiness")
         k8s_pod_status = k8s.get_pod_status(juju_model=juju_model,
@@ -124,11 +131,17 @@ def set_juju_pod_spec(fw_adapter):
         return
 
     logging.debug("Building Juju pod spec")
-    juju_pod_spec = build_juju_pod_spec(
-        app_name=fw_adapter.get_app_name(),
-        charm_config=fw_adapter.get_config(),
-        image_meta=fw_adapter.get_image_meta('prometheus-image')
-    )
+    try:
+        juju_pod_spec = build_juju_pod_spec(
+            app_name=fw_adapter.get_app_name(),
+            charm_config=fw_adapter.get_config(),
+            image_meta=fw_adapter.get_image_meta('prometheus-image')
+        )
+    except CharmError as e:
+        fw_adapter.set_unit_status(
+            BlockedStatus("Pod spec build failure: {0}".format(e))
+        )
+        return
 
     logging.debug("Configuring pod")
     fw_adapter.set_pod_spec(juju_pod_spec.to_dict())

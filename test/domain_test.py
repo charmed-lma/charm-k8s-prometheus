@@ -1,5 +1,4 @@
 import json
-import random
 import sys
 import unittest
 from uuid import uuid4
@@ -13,6 +12,7 @@ from ops.model import (
 
 sys.path.append('src')
 import domain
+from exceptions import TimeStringParseError, ExternalLabelParseError
 from adapters.k8s import (
     PodStatus
 )
@@ -23,7 +23,7 @@ from adapters.framework import (
 
 def get_default_charm_config():
     return {
-        'external-labels': '',
+        'external-labels': '{"foo": "bar"}',
         'monitor-k8s': False,
         'log-level': '',
         'additional-cli-args': None,
@@ -35,6 +35,9 @@ def get_default_charm_config():
         'tsdb-wal-compression': True,
         'alertmanager-notification-queue-capacity': 10000,
         'alertmanager-timeout': '10s',
+        'scrape-interval': '15s',
+        'scrape-timeout': '10s',
+        'evaluation-interval': '1m'
     }
 
 
@@ -139,6 +142,8 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                     'prometheus.yml': yaml.dump({
                         'global': {
                             'scrape_interval': '15s',
+                            'scrape_timeout': '10s',
+                            'evaluation_interval': '1m',
                             'external_labels': mock_external_labels
                         },
                         'scrape_configs': [
@@ -248,59 +253,100 @@ class BuildJujuUnitStatusTest(unittest.TestCase):
         assert type(juju_unit_status) == ActiveStatus
 
 
+class ExternalMetricsParserTest(unittest.TestCase):
+    def test__external_metrics_parser(self):
+        with self.assertRaises(ExternalLabelParseError):    # malformed json
+            domain.validate_and_parse_external_labels("{abc")
+            domain.validate_and_parse_external_labels("somerandomstring")
+            domain.validate_and_parse_external_labels(json.dumps({
+                True: ["val1", "val2"]
+            }))
+            domain.validate_and_parse_external_labels(json.dumps({
+                "key": ["val1", "val2"]
+            }))
+
+        self.assertEqual(domain.validate_and_parse_external_labels(""), {})
+        self.assertEqual(domain.validate_and_parse_external_labels("{}"), {})
+
+        labels = {"foo": "bar", "baz": "qux"}
+        self.assertEqual(
+            domain.validate_and_parse_external_labels(json.dumps(labels)),
+            labels
+        )
+
+
+class TimeValuesParserTest(unittest.TestCase):
+    def test__time_parser(self):
+        with self.assertRaises(TimeStringParseError):    # malformed values
+            for value in [None, False, '', 'foo', 'bam', '55z', '999']:
+                domain.validate_and_parse_time_values('test', value)
+
+        for value in ["15m", "1d", "30d", "1m", "1y"]:
+            self.assertEqual(
+                domain.validate_and_parse_time_values('test', value), value
+            )
+
+
 class BuildPrometheusConfig(unittest.TestCase):
 
     def test__it_does_not_add_the_kube_metrics_scrape_config(self):
-        mock_external_labels = str(uuid4())
-        mock_advertised_port = random.randint(1, 65535)
-        mock_prometheus_address = 'localhost:{}'.format(mock_advertised_port)
-
+        charm_config = get_default_charm_config()
         prometheus_config = domain.build_prometheus_config(
-            external_labels=mock_external_labels,
-            advertised_port=mock_advertised_port,
-            monitor_k8s=False
+            get_default_charm_config()
         )
 
         expected_config = {
             'global': {
                 'scrape_interval': '15s',
-                'external_labels': mock_external_labels
+                'scrape_timeout': '10s',
+                'evaluation_interval': '1m',
+                'external_labels': json.loads(charm_config['external-labels'])
             },
             'scrape_configs': [
                 {
                     'job_name': 'prometheus',
                     'scrape_interval': '5s',
                     'static_configs': [
-                        {'targets': [mock_prometheus_address]}
+                        {
+                            'targets': [
+                                'localhost:{}'.format(
+                                    domain.PROMETHEUS_ADVERTISED_PORT
+                                )
+                            ]
+                        }
                     ]
                 }
             ]
         }
 
-        assert yaml.safe_load(prometheus_config.yaml_dump()) == expected_config
+        self.assertEqual(
+            expected_config, yaml.safe_load(prometheus_config.yaml_dump())
+        )
 
     def test__it_adds_the_kube_metrics_scrape_config(self):
-        mock_external_labels = str(uuid4())
-        mock_advertised_port = random.randint(1, 65535)
-        mock_prometheus_address = 'localhost:{}'.format(mock_advertised_port)
-
-        prometheus_config = domain.build_prometheus_config(
-            external_labels=mock_external_labels,
-            advertised_port=mock_advertised_port,
-            monitor_k8s=True
-        )
+        charm_config = get_default_charm_config()
+        charm_config['monitor-k8s'] = True
+        prometheus_config = domain.build_prometheus_config(charm_config)
 
         expected_config = {
             'global': {
                 'scrape_interval': '15s',
-                'external_labels': mock_external_labels
+                'scrape_timeout': '10s',
+                'evaluation_interval': '1m',
+                'external_labels': json.loads(charm_config['external-labels'])
             },
             'scrape_configs': [
                 {
                     'job_name': 'prometheus',
                     'scrape_interval': '5s',
                     'static_configs': [
-                        {'targets': [mock_prometheus_address]}
+                        {
+                            'targets': [
+                                'localhost:{}'.format(
+                                    domain.PROMETHEUS_ADVERTISED_PORT
+                                )
+                            ]
+                        }
                     ]
                 }
             ]
@@ -312,4 +358,6 @@ class BuildPrometheusConfig(unittest.TestCase):
         for scrape_config in k8s_scrape_configs:
             expected_config['scrape_configs'].append(scrape_config)
 
-        assert yaml.safe_load(prometheus_config.yaml_dump()) == expected_config
+        self.assertEqual(
+            expected_config, yaml.safe_load(prometheus_config.yaml_dump())
+        )

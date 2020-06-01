@@ -9,6 +9,7 @@ from ops.framework import (
 )
 from ops.charm import RelationEvent
 from adapters.framework import FrameworkAdapter
+from domain import PROMETHEUS_ADVERTISED_PORT
 
 
 class PrometheusNewClientEvent(RelationEvent):
@@ -32,7 +33,8 @@ class PrometheusInterface(Object):
     def render_relation_data(self):
         logging.debug('render-relation-data in')
         for relation in self.model.relations[self.relation_name]:
-            relation.data[self.model.unit]['prometheus-port'] = '9090'
+            relation.data[self.model.unit]['prometheus-port'] = \
+                str(PROMETHEUS_ADVERTISED_PORT)
         logging.debug('render-relation-data out')
 
     def on_relation_joined(self, event):

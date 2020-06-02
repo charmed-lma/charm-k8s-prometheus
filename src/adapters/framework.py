@@ -68,7 +68,7 @@ class FrameworkAdapter:
     def __init__(self, framework):
         self._framework = framework
 
-    def am_i_leader(self):
+    def unit_is_leader(self):
         return self._framework.model.unit.is_leader()
 
     def get_app_name(self):
@@ -86,8 +86,14 @@ class FrameworkAdapter:
     def get_model_name(self):
         return self._framework.model.name
 
+    def get_relations(self, relation_name):
+        return self._framework.model.relations[relation_name]
+
     def get_resources_repo(self):
         return self._framework.model.resources
+
+    def get_unit(self):
+        return self._framework.model.unit
 
     def get_unit_name(self):
         return self._framework.model.unit.name

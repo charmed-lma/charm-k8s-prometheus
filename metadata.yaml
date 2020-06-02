@@ -13,6 +13,9 @@ series:
 provides:
     http-api:
         interface: prometheus-http-api
+requires:
+    alertmanager:
+        interface: prometheus-alerting-config
 resources:
     prometheus-image:
         type: oci-image

@@ -1,12 +1,14 @@
 import copy
 import json
-import yaml
 import logging
+import yaml
 
 logger = logging.getLogger()
 
 import sys
 sys.path.append('lib')
+
+logger = logging.getLogger()
 
 from ops.model import (
     ActiveStatus,
@@ -87,10 +89,11 @@ class PrometheusConfigFile:
     https://prometheus.io/docs/prometheus/latest/configuration/configuration
     '''
 
-    def __init__(self, global_opts):
+    def __init__(self, global_opts, alerting={}):
         self._config_dict = {
             'global': global_opts,
             'scrape_configs': [],
+            'alerting': alerting
         }
 
     def add_scrape_config(self, scrape_config):
@@ -101,6 +104,9 @@ class PrometheusConfigFile:
 
     def yaml_dump(self):
         return yaml.dump(self._config_dict)
+
+    def __repr__(self):
+        return str(self._config_dict)
 
 
 # DOMAIN SERVICES
@@ -189,7 +195,8 @@ def build_prometheus_cli_args(charm_config):
 
 def build_juju_pod_spec(app_name,
                         charm_config,
-                        image_meta):
+                        image_meta,
+                        alerting_config={}):
 
     # There is never ever a need to customize the advertised port of a
     # containerized Prometheus instance so we are removing that config
@@ -340,4 +347,5 @@ def build_prometheus_config(charm_config):
         for scrape_config in k8s_scrape_configs:
             prometheus_config.add_scrape_config(scrape_config)
 
+    logger.debug("Build prom config: {}".format(prometheus_config))
     return prometheus_config

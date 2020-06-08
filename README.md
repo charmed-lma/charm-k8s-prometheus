@@ -8,7 +8,7 @@ Click on each badge for more details.
 
 | Branch | Build Status | Coverage |
 |--------|--------------|----------|
-| master | [![Build Status (master)](https://travis-ci.org/relaxdiego/charm-k8s-prometheus.svg?branch=master)](https://travis-ci.org/relaxdiego/charm-k8s-prometheus) | [![Coverage Status](https://coveralls.io/repos/github/relaxdiego/charm-k8s-prometheus/badge.svg?branch=master)](https://coveralls.io/github/relaxdiego/charm-k8s-prometheus?branch=master) |
+| master | [![Build Status (master)](https://travis-ci.org/charmed-lma/charm-k8s-prometheus.svg?branch=master)](https://travis-ci.org/charmed-lma/charm-k8s-prometheus) | [![Coverage Status](https://coveralls.io/repos/github/charmed-lma/charm-k8s-prometheus/badge.svg?branch=master)](https://coveralls.io/github/charmed-lma/charm-k8s-prometheus?branch=master) |
 
 
 Quick Start
@@ -98,8 +98,23 @@ Prometheus' PID in the pod is usually 1 but if you're not sure, run:
 Use Prometheus as a Grafana Datasource
 --------------------------------------
 
-Refer to the [Grafana Operator](https://github.com/relaxdiego/charm-k8s-grafana)
+Refer to the [Grafana Operator](https://github.com/charmed-lma/charm-k8s-grafana)
 Quick Start guide to learn how to use Prometheus with Grafana.
+
+
+Use Prometheus with AlertManager
+--------------------------------
+
+Refer to the [AlertManager Operator](https://github.com/charmed-lma/charm-k8s-alertmanager)
+Quick Start guide to learn how to use Prometheus with AlertManager.
+
+
+This Charm's Architecture
+-------------------------
+
+To learn how to navigate this charm's code and become an effective contributor,
+please read the [Charmed LMA Operators Architecture](https://docs.google.com/document/d/1V5cA9D1YN8WGEClpLhUwQt2dYrg5VZEY99LZiE6Mx_A/edit?usp=sharing)
+reference doc.
 
 
 Preparing Your Workstation for Local Development
@@ -125,7 +140,6 @@ Preparing Your Workstation for Local Development
 
     NOTE: Replace X with the correct minor version as shown in `pyenv install --list`
 
-    pyenv install 3.5.X
     pyenv install 3.6.X
     pyenv install 3.7.X
 
@@ -160,7 +174,6 @@ If You Want More Control Over Your Python Environments
 
 3. Make two virtualenvs that you can quickly switch between for testing
 
-   pyenv virtualenv --python $(pyenv which python3.6) charm-k8s-prometheus-py35
    pyenv virtualenv --python $(pyenv which python3.6) charm-k8s-prometheus-py36
    pyenv virtualenv --python $(pyenv which python3.7) charm-k8s-prometheus-py37
 
@@ -203,8 +216,9 @@ NOTE: You can leave that static server running in one session while you continue
 to execute `tox` on another session. That server will pick up any new changes to
 the report automatically so you don't have to restart it each time.
 
+
 Troubleshooting
-----------
+---------------
 
 Since Kubernetes charms are not supported by `juju debug-hooks`, the only
 way to intercept code execution is to initialize the non-tty-bound

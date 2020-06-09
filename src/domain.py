@@ -89,7 +89,11 @@ class PrometheusConfigFile:
     https://prometheus.io/docs/prometheus/latest/configuration/configuration
     '''
 
-    def __init__(self, global_opts, alerting={}):
+    def __init__(self, global_opts, alerting=None):
+        # Mutable defaults bug as described in https://bit.ly/3cF0k0w
+        if not alerting:
+            alerting = dict()
+
         self._config_dict = {
             'global': global_opts,
             'scrape_configs': [],
@@ -196,7 +200,11 @@ def build_prometheus_cli_args(charm_config):
 def build_juju_pod_spec(app_name,
                         charm_config,
                         image_meta,
-                        alerting_config={}):
+                        alerting_config=None):
+
+    # Mutable defaults bug as described in https://bit.ly/3cF0k0w
+    if not alerting_config:
+        alerting_config = dict()
 
     # There is never ever a need to customize the advertised port of a
     # containerized Prometheus instance so we are removing that config

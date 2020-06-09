@@ -137,7 +137,11 @@ def on_stop_handler(event, fw_adapter):
     fw_adapter.set_unit_status(MaintenanceStatus("Pod is terminating"))
 
 
-def set_juju_pod_spec(fw_adapter, alerting_config={}):
+def set_juju_pod_spec(fw_adapter, alerting_config=None):
+    # Mutable defaults bug as described in https://bit.ly/3cF0k0w
+    if not alerting_config:
+        alerting_config = dict()
+
     if not fw_adapter.unit_is_leader():
         logging.debug("Unit is not a leader, skip pod spec configuration")
         return

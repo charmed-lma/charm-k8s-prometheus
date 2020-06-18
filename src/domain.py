@@ -2,10 +2,10 @@ import copy
 import json
 import logging
 import yaml
-
-logger = logging.getLogger()
-
+import http.client
 import sys
+import time
+
 sys.path.append('lib')
 
 logger = logging.getLogger()
@@ -16,7 +16,10 @@ from ops.model import (
     BlockedStatus
 )
 
-from exceptions import ExternalLabelParseError, TimeStringParseError
+from exceptions import (
+    CharmError, ExternalLabelParseError,
+    TimeStringParseError, PrometheusAPIError
+)
 
 
 # There is never ever a need to customize the advertised port of a
@@ -108,6 +111,9 @@ class PrometheusConfigFile:
 
     def yaml_dump(self):
         return yaml.dump(self._config_dict)
+
+    def to_dict(self):
+        return self._config_dict
 
     def __repr__(self):
         return str(self._config_dict)
@@ -205,10 +211,6 @@ def build_juju_pod_spec(app_name,
     # Mutable defaults bug as described in https://bit.ly/3cF0k0w
     if not alerting_config:
         alerting_config = dict()
-
-    # There is never ever a need to customize the advertised port of a
-    # containerized Prometheus instance so we are removing that config
-    # option and making it statically default to its typical 9090
 
     prom_config = build_prometheus_config(charm_config)
 
@@ -340,6 +342,10 @@ def build_prometheus_config(charm_config):
     prometheus_config.add_scrape_config({
         'job_name': 'prometheus',
         'scrape_interval': '5s',
+        'scrape_timeout': '5s',
+        'metrics_path': '/metrics',
+        'honor_timestamps': True,
+        'scheme': 'http',
         'static_configs': [{
             'targets': [
                 'localhost:{}'.format(PROMETHEUS_ADVERTISED_PORT)
@@ -357,3 +363,107 @@ def build_prometheus_config(charm_config):
 
     logger.debug("Build prom config: {}".format(prometheus_config))
     return prometheus_config
+
+
+def _prometheus_http_api_call(
+        model_name, app_name, method, endpoint, return_response=True):
+
+    if method not in ['GET', 'POST', 'PUT']:
+        raise CharmError('Wrong HTTP method')
+
+    host = "{0}.{1}.svc:{2}".format(
+        app_name, model_name, PROMETHEUS_ADVERTISED_PORT
+    )
+    conn = http.client.HTTPConnection(host)
+    conn.request(method=method, url=endpoint)
+    logger.debug("Calling Prom API: {0} {1}".format(method, endpoint))
+
+    # TODO: Handle the un-available API endpoint case
+    response = conn.getresponse()
+
+    if response.status < 200 or response.status >= 300:
+        logger.error("API returned error: {0}".format(
+            response.read()
+        ))
+        raise PrometheusAPIError("Prom API returned error, see unit logs")
+
+    if return_response:
+        try:
+            return json.loads(response.read())
+        except (ValueError, TypeError) as e:
+            logger.error("Prom API returned non-JSON: {0}".format(e))
+            raise PrometheusAPIError("Non-JSON response returned")
+
+
+def reload_configuration(juju_model, juju_app, current_charm_config):
+
+    try:
+        expected_config = build_prometheus_config(current_charm_config)
+        logging.debug(
+            "Awaiting Prom config to be: {0}".format(expected_config)
+        )
+
+        i = 0
+        while True:
+            # Wait, until ConfigMap changes will be propagated
+            config_reload_api_call(juju_model, juju_app)
+            new_config_applied = check_config_propagation(
+                juju_model, juju_app, expected_config
+            )
+            if new_config_applied:
+                break
+            i += 1
+            if i > 5:
+                logger.error(
+                    "Config has not been propagated after timeout"
+                )
+                return False
+            time.sleep(5)
+
+        logger.debug("Config reloaded")
+    except CharmError as e:
+        logger.error("Exception raised: {0}".format(e))
+        return False
+
+    return new_config_applied
+
+
+def config_reload_api_call(model_name, app_name):
+    return _prometheus_http_api_call(
+        model_name, app_name, 'POST', '/-/reload', return_response=False
+    )
+
+
+def check_config_propagation(model_name, app_name, expected_config):
+    """
+    :param model_name
+    :param app_name
+    :param expected_config: PrometheusConfigFile instance
+    """
+
+    if not isinstance(expected_config, PrometheusConfigFile):
+        raise CharmError(
+            "Expected PrometheusConfigFile instance, got {0}".format(
+                type(expected_config)
+            )
+        )
+
+    logging.debug("Expected: {0}".format(expected_config))
+    response = _prometheus_http_api_call(
+        model_name, app_name, 'GET', '/api/v1/status/config'
+    )
+    current_config = yaml.safe_load(response['data']['yaml'])
+
+    # Some of the config options may be empty, so we have to re-add them
+    # back to the received dict; otherwise this comparison will fail.
+
+    if not current_config['global'].get('external_labels'):
+        logging.debug("No external_labels received, adding empty key")
+        current_config['global']['external_labels'] = {}
+
+    if not current_config.get('alerting'):
+        logging.debug("No alerting received, adding empty key")
+        current_config['alerting'] = {}
+
+    logging.debug("Received from API: {0}".format(current_config))
+    return current_config == expected_config.to_dict()

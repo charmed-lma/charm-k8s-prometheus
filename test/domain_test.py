@@ -12,13 +12,17 @@ from ops.model import (
 
 sys.path.append('src')
 import domain
-from exceptions import TimeStringParseError, ExternalLabelParseError
+from exceptions import (
+    TimeStringParseError, ExternalLabelParseError,
+    PrometheusAPIError, CharmError
+)
 from adapters.k8s import (
     PodStatus
 )
 from adapters.framework import (
     ImageMeta,
 )
+from unittest.mock import patch
 
 
 def get_default_charm_config():
@@ -27,7 +31,7 @@ def get_default_charm_config():
         'monitor-k8s': False,
         'log-level': '',
         'additional-cli-args': None,
-        'web-enable-admin-api': False,
+        'web-enable-admin-api': True,
         'web-page-title': 'PrometheusTest',
         'web-max-connections': 512,
         'web-read-timeout': '5m',
@@ -41,10 +45,42 @@ def get_default_charm_config():
     }
 
 
+class PromMockConfig(object):
+    def __init__(self):
+        self.config = {
+            'global': {
+                'scrape_interval': '10s',
+                'external_labels': {"foo": "bar"},
+                'scrape_timeout': '10s',
+                'evaluation_interval': '1m'
+            },
+            'scrape_configs': [
+                {
+                    'job_name': 'prometheus',
+                    'honor_timestamps': True,
+                    'scrape_interval': '5s',
+                    'scrape_timeout': '5s',
+                    'metrics_path': '/metrics',
+                    'scheme': 'http',
+                    'static_configs': [
+                        {'targets': ['localhost:9090']}
+                    ]
+                }
+            ]
+        }
+
+    def render(self):
+        return {
+            "status": "success",
+            "data": {
+                "yaml": yaml.safe_dump(self.config)
+            }
+        }
+
+
 class PrometheusCLIArgumentsTest(unittest.TestCase):
     @staticmethod
     def test__cli_args_are_rendered_correctly():
-        # mock_config = self.default_mock_config
         config = get_default_charm_config()
         mock_args_config = domain.build_prometheus_cli_args(config)
         expected_cli_args = [
@@ -54,6 +90,7 @@ class PrometheusCLIArgumentsTest(unittest.TestCase):
             '--web.console.templates=/usr/share/prometheus/consoles',
             '--web.console.libraries=/usr/share/prometheus/console_libraries',
             '--log.level=info',
+            '--web.enable-admin-api',
             '--web.page-title="PrometheusTest"',
             '--storage.tsdb.wal-compression',
             '--web.max-connections=512',
@@ -77,8 +114,7 @@ class PrometheusCLIArgumentsTest(unittest.TestCase):
 
 
 class BuildJujuPodSpecTest(unittest.TestCase):
-    @staticmethod
-    def test__pod_spec_is_generated():
+    def test__pod_spec_is_generated(self):
         # Set up
         mock_app_name = str(uuid4())
 
@@ -107,7 +143,7 @@ class BuildJujuPodSpecTest(unittest.TestCase):
 
         # Assertions
         assert isinstance(juju_pod_spec, domain.PrometheusJujuPodSpec)
-        assert juju_pod_spec.to_dict() == {'containers': [{
+        self.assertEqual(juju_pod_spec.to_dict(), {'containers': [{
             'name': mock_app_name,
             'imageDetails': {
                 'imagePath': mock_image_meta.image_path,
@@ -148,8 +184,12 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                         },
                         'scrape_configs': [
                             {
+                                'metrics_path': '/metrics',
+                                'honor_timestamps': True,
+                                'scheme': 'http',
                                 'job_name': 'prometheus',
                                 'scrape_interval': '5s',
+                                'scrape_timeout': '5s',
                                 'static_configs': [
                                     {
                                         'targets': [
@@ -163,7 +203,7 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                     })
                 }
             }]
-        }]}
+        }]})
 
 
 class BuildJujuUnitStatusTest(unittest.TestCase):
@@ -265,6 +305,7 @@ class ExternalMetricsParserTest(unittest.TestCase):
             domain.validate_and_parse_external_labels(json.dumps({
                 "key": ["val1", "val2"]
             }))
+            domain.validate_and_parse_external_labels(json.dumps([]))
 
         self.assertEqual(domain.validate_and_parse_external_labels(""), {})
         self.assertEqual(domain.validate_and_parse_external_labels("{}"), {})
@@ -288,6 +329,89 @@ class TimeValuesParserTest(unittest.TestCase):
             )
 
 
+class ConfigReloadTest(unittest.TestCase):
+
+    @patch('domain.time', spec_set=True, autospec=True)
+    @patch('domain._prometheus_http_api_call', spec_set=True, autospec=True)
+    def test__reload_configuration(
+            self, prometheus_http_api_call_mock, time_mock):
+        prom_api_response = PromMockConfig()
+
+        # These two are not returned by Prom API in reality (if empty),
+        # but they have to be present - otherwise charm will not be able
+        # to compare expected and given configs.
+
+        charm_config = get_default_charm_config()
+        charm_config['external-labels'] = {}
+        del prom_api_response.config['global']['external_labels']
+
+        # Wrong config comes from Prometheus
+        prometheus_http_api_call_mock.return_value = prom_api_response.render()
+        self.assertFalse(domain.reload_configuration(
+            'juju-app', 'juju-model', charm_config
+        ))
+
+        # After some times it becomes valid
+        prom_api_response.config['global']['scrape_interval'] = '15s'
+        prometheus_http_api_call_mock.return_value = prom_api_response.render()
+        self.assertTrue(domain.reload_configuration(
+            'juju-app', 'juju-model', charm_config
+        ))
+
+        # Prom API returned some error
+        prometheus_http_api_call_mock.side_effect = PrometheusAPIError('test')
+        self.assertFalse(domain.reload_configuration(
+            'juju-app', 'juju-model', charm_config
+        ))
+
+    def test_config_propagation_raises_on_wrong_arg(self):
+        with self.assertRaises(CharmError):
+            for opt in [{}, get_default_charm_config()]:
+                domain.check_config_propagation('juju-app', 'juju-model', opt)
+
+
+class HTTPCallTest(unittest.TestCase):
+    @patch('domain.http.client.HTTPConnection', spec_set=True, autospec=True)
+    def test__http_handler_raises_on_malformed_response(
+            self, mocked_http_client):
+
+        # Invalid method
+        with self.assertRaises(CharmError):
+            domain._prometheus_http_api_call(
+                'juju-model', 'juju-app', 'FOO', '/-/', return_response=False
+            )
+
+        # Prom responded with 200 OK
+        mocked_http_client.return_value.getresponse.return_value.status = 200
+        domain._prometheus_http_api_call(
+            'juju-model', 'juju-app', 'GET', '/-/', return_response=False
+        )
+
+        # Prom responded with 200 AND valid JSON file
+        prom_api_config = json.dumps(PromMockConfig().render())
+        mocked_http_client.return_value.getresponse.\
+            return_value.read.return_value = prom_api_config
+        domain._prometheus_http_api_call(
+            'juju-model', 'juju-app', 'GET', '/-/',
+        )
+
+        # Prom responded with 200 but malformed json
+        # (normally shouldn't happen)
+        mocked_http_client.return_value.getresponse.\
+            return_value.read.return_value = "[malformed-json-here"
+        with self.assertRaises(PrometheusAPIError):
+            domain._prometheus_http_api_call(
+                'juju-model', 'juju-app', 'GET', '/-/'
+            )
+
+        # Prom responded with HTTP 300, smth went wrong
+        mocked_http_client.return_value.getresponse.return_value.status = 300
+        with self.assertRaises(PrometheusAPIError):
+            domain._prometheus_http_api_call(
+                'juju-model', 'juju-app', 'GET', '/-/', return_response=False
+            )
+
+
 class BuildPrometheusConfig(unittest.TestCase):
 
     def test__it_does_not_add_the_kube_metrics_scrape_config(self):
@@ -307,6 +431,10 @@ class BuildPrometheusConfig(unittest.TestCase):
                 {
                     'job_name': 'prometheus',
                     'scrape_interval': '5s',
+                    'scrape_timeout': '5s',
+                    'metrics_path': '/metrics',
+                    'honor_timestamps': True,
+                    'scheme': 'http',
                     'static_configs': [
                         {
                             'targets': [
@@ -341,6 +469,10 @@ class BuildPrometheusConfig(unittest.TestCase):
                 {
                     'job_name': 'prometheus',
                     'scrape_interval': '5s',
+                    'scrape_timeout': '5s',
+                    'metrics_path': '/metrics',
+                    'honor_timestamps': True,
+                    'scheme': 'http',
                     'static_configs': [
                         {
                             'targets': [

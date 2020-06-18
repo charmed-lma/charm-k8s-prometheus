@@ -85,7 +85,7 @@ class OnConfigChangedHandlerTest(unittest.TestCase):
     @patch('charm.time', spec_set=True, autospec=True)
     @patch('charm.build_juju_pod_spec', spec_set=True, autospec=True)
     @patch('charm.set_juju_pod_spec', spec_set=True, autospec=True)
-    @patch('charm.StoredState', spec_set=True, autospec=True)
+    @patch('charm.StoredState', autospec=True)
     def test__it_blocks_until_pod_is_ready(
             self,
             mock_stored_state_cls,
@@ -110,6 +110,8 @@ class OnConfigChangedHandlerTest(unittest.TestCase):
         mock_event = mock_event_cls.return_value
 
         mock_state = mock_stored_state_cls.return_value
+        mock_state.recently_started = True
+        mock_state.config_propagated = True
 
         # Exercise
         charm.on_config_changed_handler(mock_event,
@@ -183,10 +185,15 @@ class OnStartHandlerTest(unittest.TestCase):
         mock_prom_juju_pod_spec = create_autospec(domain.PrometheusJujuPodSpec)
         mock_build_juju_pod_spec_func.return_value = mock_prom_juju_pod_spec
 
+        mock_state = create_autospec(charm.StoredState).return_value
+
         # Exercise
-        charm.on_start_handler(mock_event, mock_fw)
+        charm.on_start_handler(mock_event, mock_fw, mock_state)
 
         # Assert
+        assert mock_state.recently_started
+        assert mock_state.config_propagated
+
         assert mock_build_juju_pod_spec_func.call_count == 1
         assert mock_build_juju_pod_spec_func.call_args == \
             call(app_name=mock_fw.get_app_name.return_value,

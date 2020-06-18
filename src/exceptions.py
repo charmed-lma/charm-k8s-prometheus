@@ -12,3 +12,7 @@ class ExternalLabelParseError(CharmError):
 
 class TimeStringParseError(CharmError):
     pass
+
+
+class PrometheusAPIError(CharmError):
+    pass

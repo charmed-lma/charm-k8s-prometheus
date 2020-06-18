@@ -15,13 +15,14 @@ from ops.main import main
 from ops.model import (
     ActiveStatus,
     MaintenanceStatus,
-    BlockedStatus
+    BlockedStatus,
 )
 from ops.framework import StoredState
 from adapters.framework import FrameworkAdapter
 from domain import (
     build_juju_pod_spec,
     build_juju_unit_status,
+    reload_configuration,
 )
 from adapters import k8s
 from exceptions import CharmError
@@ -56,12 +57,15 @@ class Charm(CharmBase):
             self.on.upgrade_charm: self.on_upgrade,
             self.on.stop: self.on_stop,
             self.alertmanager.on.new_relation:
-                self.on_new_alertmanager_relation
+                self.on_new_alertmanager_relation,
         }
         for event, handler in event_handler_bindings.items():
             self.fw_adapter.observe(event, handler)
 
-        self._stored.set_default(is_started=False)
+        self._stored.set_default(
+            recently_started=True,
+            config_propagated=True
+        )
 
     # DELEGATORS
 
@@ -81,10 +85,10 @@ class Charm(CharmBase):
         on_new_alertmanager_relation_handler(event, self.fw_adapter)
 
     def on_start(self, event):
-        on_start_handler(event, self.fw_adapter)
+        on_start_handler(event, self.fw_adapter, self._stored)
 
     def on_upgrade(self, event):
-        on_upgrade_handler(event, self.fw_adapter)
+        on_upgrade_handler(event, self.fw_adapter, self._stored)
 
     def on_stop(self, event):
         on_stop_handler(event, self.fw_adapter)
@@ -119,18 +123,55 @@ def on_config_changed_handler(event, fw_adapter, state):
         pod_is_ready = isinstance(juju_unit_status, ActiveStatus)
         time.sleep(1)
 
+    # Prometheus has recently started so its config file and the underlying
+    # CofigMap are synchronized so there's no need to reload.
+    if state.recently_started:
+        state.recently_started = False
+        return
+
+    config_was_changed_post_startup = \
+        not state.recently_started and state.config_propagated
+    config_needs_reloading = \
+        not state.recently_started and not state.config_propagated
+
+    if config_was_changed_post_startup:
+        # We assume that the new config hasn't propagated all the way up
+        # to the Prometheus container.
+        state.config_propagated = False
+
+        fw_adapter.set_unit_status(MaintenanceStatus(
+            "Waiting for new config to propagate to unit"
+        ))
+        logger.debug("Config not yet propagated. Deferring.")
+        # The rest of this event handler is deferred so that Juju can continue
+        # with the config-change cycle, apply the new config to the ConfigMap
+        # and allow kubernetes to propogate that the the mounted volume in
+        # the Prometheus pod.
+        event.defer()
+        return
+
+    if config_needs_reloading:
+        state.config_propagated = reload_configuration(
+            juju_model, juju_app, fw_adapter.get_config()
+        )
+        if state.config_propagated:
+            fw_adapter.set_unit_status(ActiveStatus())
+        return
+
 
 def on_new_alertmanager_relation_handler(event, fw_adapter):
     alerting_config = json.loads(event.data.get('alerting_config', '{}'))
     set_juju_pod_spec(fw_adapter, alerting_config)
 
 
-def on_start_handler(event, fw_adapter):
+def on_start_handler(event, fw_adapter, state):
     set_juju_pod_spec(fw_adapter)
+    state.recently_started = True
+    state.config_propagated = True
 
 
-def on_upgrade_handler(event, fw_adapter):
-    on_start_handler(event, fw_adapter)
+def on_upgrade_handler(event, fw_adapter, state):
+    on_start_handler(event, fw_adapter, state)
 
 
 def on_stop_handler(event, fw_adapter):
@@ -166,8 +207,9 @@ def set_juju_pod_spec(fw_adapter, alerting_config=None):
         )
         return
 
-    logging.debug("Configuring pod")
-    fw_adapter.set_pod_spec(juju_pod_spec.to_dict())
+    pod_spec = juju_pod_spec.to_dict()
+    logging.debug("Configuring pod: set PodSpec to: {0}".format(pod_spec))
+    fw_adapter.set_pod_spec(pod_spec)
     fw_adapter.set_unit_status(MaintenanceStatus("Configuring pod"))
 
 

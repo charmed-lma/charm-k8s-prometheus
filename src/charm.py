@@ -21,7 +21,6 @@ from ops.framework import StoredState
 from adapters.framework import FrameworkAdapter
 from domain import (
     build_juju_pod_spec,
-    build_juju_unit_status,
     reload_configuration,
 )
 from adapters import k8s
@@ -104,24 +103,55 @@ class Charm(CharmBase):
 
 def on_config_changed_handler(event, fw_adapter, state):
     set_juju_pod_spec(fw_adapter)
+
+    wait_for_pod_readiness(fw_adapter)
+    ensure_config_is_reloaded(event, fw_adapter, state)
+
+
+def on_new_alertmanager_relation_handler(event, fw_adapter):
+    alerting_config = json.loads(event.data.get('alerting_config', '{}'))
+    set_juju_pod_spec(fw_adapter, alerting_config)
+
+
+def on_start_handler(event, fw_adapter, state):
+    set_juju_pod_spec(fw_adapter)
+    state.recently_started = True
+    state.config_propagated = True
+
+
+def on_upgrade_handler(event, fw_adapter, state):
+    on_start_handler(event, fw_adapter, state)
+
+
+def on_stop_handler(event, fw_adapter):
+    fw_adapter.set_unit_status(MaintenanceStatus("Pod is terminating"))
+
+
+# OTHER FRAMEWORK-SPECIFIC LOGIC
+
+def build_juju_unit_status(pod_status):
+    if pod_status.is_unknown:
+        unit_status = MaintenanceStatus("Waiting for pod to appear")
+    elif not pod_status.is_running:
+        unit_status = MaintenanceStatus("Pod is starting")
+    elif pod_status.is_running and not pod_status.is_ready:
+        unit_status = MaintenanceStatus("Pod is getting ready")
+    elif pod_status.is_running and pod_status.is_ready:
+        unit_status = ActiveStatus()
+    else:
+        # Covering a "variable referenced before assignment" linter error
+        unit_status = BlockedStatus(
+            "Error: Unexpected pod_status received: {0}".format(
+                pod_status.raw_status
+            )
+        )
+
+    return unit_status
+
+
+def ensure_config_is_reloaded(event, fw_adapter, state):
     juju_model = fw_adapter.get_model_name()
     juju_app = fw_adapter.get_app_name()
-    juju_unit = fw_adapter.get_unit_name()
-
-    pod_is_ready = False
-
-    # TODO: Fail by timeout, if pod will never go to the Ready state?
-    while not pod_is_ready:
-        logging.debug("Checking k8s pod readiness")
-        k8s_pod_status = k8s.get_pod_status(juju_model=juju_model,
-                                            juju_app=juju_app,
-                                            juju_unit=juju_unit)
-        logging.debug("Received k8s pod status: {0}".format(k8s_pod_status))
-        juju_unit_status = build_juju_unit_status(k8s_pod_status)
-        logging.debug("Built unit status: {0}".format(juju_unit_status))
-        fw_adapter.set_unit_status(juju_unit_status)
-        pod_is_ready = isinstance(juju_unit_status, ActiveStatus)
-        time.sleep(1)
 
     # Prometheus has recently started so its config file and the underlying
     # CofigMap are synchronized so there's no need to reload.
@@ -159,25 +189,6 @@ def on_config_changed_handler(event, fw_adapter, state):
         return
 
 
-def on_new_alertmanager_relation_handler(event, fw_adapter):
-    alerting_config = json.loads(event.data.get('alerting_config', '{}'))
-    set_juju_pod_spec(fw_adapter, alerting_config)
-
-
-def on_start_handler(event, fw_adapter, state):
-    set_juju_pod_spec(fw_adapter)
-    state.recently_started = True
-    state.config_propagated = True
-
-
-def on_upgrade_handler(event, fw_adapter, state):
-    on_start_handler(event, fw_adapter, state)
-
-
-def on_stop_handler(event, fw_adapter):
-    fw_adapter.set_unit_status(MaintenanceStatus("Pod is terminating"))
-
-
 def set_juju_pod_spec(fw_adapter, alerting_config=None):
     # Mutable defaults bug as described in https://bit.ly/3cF0k0w
     if not alerting_config:
@@ -211,6 +222,26 @@ def set_juju_pod_spec(fw_adapter, alerting_config=None):
     logging.debug("Configuring pod: set PodSpec to: {0}".format(pod_spec))
     fw_adapter.set_pod_spec(pod_spec)
     fw_adapter.set_unit_status(MaintenanceStatus("Configuring pod"))
+
+
+def wait_for_pod_readiness(fw_adapter):
+    juju_model = fw_adapter.get_model_name()
+    juju_app = fw_adapter.get_app_name()
+    juju_unit = fw_adapter.get_unit_name()
+    pod_is_ready = False
+
+    # TODO: Fail by timeout, if pod will never go to the Ready state?
+    while not pod_is_ready:
+        logging.debug("Checking k8s pod readiness")
+        k8s_pod_status = k8s.get_pod_status(juju_model=juju_model,
+                                            juju_app=juju_app,
+                                            juju_unit=juju_unit)
+        logging.debug("Received k8s pod status: {0}".format(k8s_pod_status))
+        juju_unit_status = build_juju_unit_status(k8s_pod_status)
+        logging.debug("Built unit status: {0}".format(juju_unit_status))
+        fw_adapter.set_unit_status(juju_unit_status)
+        pod_is_ready = isinstance(juju_unit_status, ActiveStatus)
+        time.sleep(1)
 
 
 if __name__ == "__main__":

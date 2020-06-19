@@ -19,6 +19,7 @@ from ops.model import (
 sys.path.append('src')
 from adapters import (
     framework,
+    k8s,
 )
 import charm
 import domain
@@ -76,21 +77,135 @@ import domain
 #         # ]
 
 
+class BuildJujuUnitStatusTest(unittest.TestCase):
+
+    def test_returns_maintenance_status_if_pod_status_cannot_be_fetched(self):
+        # Setup
+        pod_status = k8s.PodStatus(status_dict=None)
+
+        # Exercise
+        juju_unit_status = charm.build_juju_unit_status(pod_status)
+
+        # Assertions
+        assert type(juju_unit_status) == MaintenanceStatus
+        assert juju_unit_status.message == "Waiting for pod to appear"
+
+    def test_returns_maintenance_status_if_pod_is_not_running(self):
+        # Setup
+        status_dict = {
+            'metadata': {
+                'annotations': {
+                    'juju.io/unit': uuid4()
+                }
+            },
+            'status': {
+                'phase': 'Pending',
+                'conditions': [{
+                    'type': 'ContainersReady',
+                    'status': 'False'
+                }]
+            }
+        }
+        pod_status = k8s.PodStatus(status_dict=status_dict)
+
+        # Exercise
+        juju_unit_status = charm.build_juju_unit_status(pod_status)
+
+        # Assertions
+        assert type(juju_unit_status) == MaintenanceStatus
+        assert juju_unit_status.message == "Pod is starting"
+
+    def test_returns_maintenance_status_if_pod_is_not_ready(self):
+        # Setup
+        status_dict = {
+            'metadata': {
+                'annotations': {
+                    'juju.io/unit': uuid4()
+                }
+            },
+            'status': {
+                'phase': 'Running',
+                'conditions': [{
+                    'type': 'ContainersReady',
+                    'status': 'False'
+                }]
+            }
+        }
+        pod_status = k8s.PodStatus(status_dict=status_dict)
+
+        # Exercise
+        juju_unit_status = charm.build_juju_unit_status(pod_status)
+
+        # Assertions
+        assert type(juju_unit_status) == MaintenanceStatus
+        assert juju_unit_status.message == "Pod is getting ready"
+
+    def test_returns_active_status_if_pod_is_ready(self):
+        # Setup
+        status_dict = {
+            'metadata': {
+                'annotations': {
+                    'juju.io/unit': uuid4()
+                }
+            },
+            'status': {
+                'phase': 'Running',
+                'conditions': [{
+                    'type': 'ContainersReady',
+                    'status': 'True'
+                }]
+            }
+        }
+        pod_status = k8s.PodStatus(status_dict=status_dict)
+
+        # Exercise
+        juju_unit_status = charm.build_juju_unit_status(pod_status)
+
+        # Assertions
+        assert type(juju_unit_status) == ActiveStatus
+
+
 class OnConfigChangedHandlerTest(unittest.TestCase):
+
+    @patch('charm.wait_for_pod_readiness', spec_set=True, autospec=True)
+    @patch('charm.ensure_config_is_reloaded', spec_set=True, autospec=True)
+    def test__it_pod_is_ready_and_config_is_updated(
+        self,
+        mock_ensure_config_is_reloaded,
+        mock_wait_for_pod_readiness_func
+    ):
+        # Setup
+        mock_fw_adapter_cls = \
+            create_autospec(framework.FrameworkAdapter, spec_set=True)
+        mock_fw = mock_fw_adapter_cls.return_value
+
+        mock_event_cls = create_autospec(EventBase)
+        mock_event = mock_event_cls.return_value
+
+        mock_state_cls = \
+            create_autospec(charm.StoredState, spec_set=True)
+        mock_state = mock_state_cls.return_value
+
+        # Exercise
+        charm.on_config_changed_handler(mock_event, mock_fw, mock_state)
+
+        # Assert
+        assert mock_wait_for_pod_readiness_func.call_count == 1
+
+        assert mock_ensure_config_is_reloaded.call_count == 1
+
+
+class WaitForPodReadinessTest(unittest.TestCase):
 
     # We are mocking the time module here so that we don't actually wait
     # 1 second per loop during test exectution.
     @patch('charm.build_juju_unit_status', spec_set=True, autospec=True)
     @patch('charm.k8s', spec_set=True, autospec=True)
     @patch('charm.time', spec_set=True, autospec=True)
-    @patch('charm.build_juju_pod_spec', spec_set=True, autospec=True)
     @patch('charm.set_juju_pod_spec', spec_set=True, autospec=True)
-    @patch('charm.StoredState', autospec=True)
     def test__it_blocks_until_pod_is_ready(
             self,
-            mock_stored_state_cls,
             mock_pod_spec,
-            mock_juju_pod_spec,
             mock_time,
             mock_k8s_mod,
             mock_build_juju_unit_status_func):
@@ -106,17 +221,8 @@ class OnConfigChangedHandlerTest(unittest.TestCase):
         ]
         mock_build_juju_unit_status_func.side_effect = mock_juju_unit_states
 
-        mock_event_cls = create_autospec(EventBase, spec_set=True)
-        mock_event = mock_event_cls.return_value
-
-        mock_state = mock_stored_state_cls.return_value
-        mock_state.recently_started = True
-        mock_state.config_propagated = True
-
         # Exercise
-        charm.on_config_changed_handler(mock_event,
-                                        mock_fw_adapter,
-                                        mock_state)
+        charm.wait_for_pod_readiness(mock_fw_adapter)
 
         # Assert
         assert mock_fw_adapter.set_unit_status.call_count == \

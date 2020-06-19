@@ -10,12 +10,6 @@ sys.path.append('lib')
 
 logger = logging.getLogger()
 
-from ops.model import (
-    ActiveStatus,
-    MaintenanceStatus,
-    BlockedStatus
-)
-
 from exceptions import (
     CharmError, ExternalLabelParseError,
     TimeStringParseError, PrometheusAPIError
@@ -224,26 +218,6 @@ def build_juju_pod_spec(app_name,
         prometheus_config=prom_config)
 
     return spec
-
-
-def build_juju_unit_status(pod_status):
-    if pod_status.is_unknown:
-        unit_status = MaintenanceStatus("Waiting for pod to appear")
-    elif not pod_status.is_running:
-        unit_status = MaintenanceStatus("Pod is starting")
-    elif pod_status.is_running and not pod_status.is_ready:
-        unit_status = MaintenanceStatus("Pod is getting ready")
-    elif pod_status.is_running and pod_status.is_ready:
-        unit_status = ActiveStatus()
-    else:
-        # Covering a "variable referenced before assignment" linter error
-        unit_status = BlockedStatus(
-            "Error: Unexpected pod_status received: {0}".format(
-                pod_status.raw_status
-            )
-        )
-
-    return unit_status
 
 
 def validate_and_parse_external_labels(raw_labels):

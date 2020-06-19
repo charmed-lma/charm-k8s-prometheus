@@ -4,20 +4,11 @@ import unittest
 from uuid import uuid4
 import yaml
 
-sys.path.append('lib')
-from ops.model import (
-    ActiveStatus,
-    MaintenanceStatus,
-)
-
 sys.path.append('src')
 import domain
 from exceptions import (
     TimeStringParseError, ExternalLabelParseError,
     PrometheusAPIError, CharmError
-)
-from adapters.k8s import (
-    PodStatus
 )
 from adapters.framework import (
     ImageMeta,
@@ -204,94 +195,6 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                 }
             }]
         }]})
-
-
-class BuildJujuUnitStatusTest(unittest.TestCase):
-
-    def test_returns_maintenance_status_if_pod_status_cannot_be_fetched(self):
-        # Setup
-        pod_status = PodStatus(status_dict=None)
-
-        # Exercise
-        juju_unit_status = domain.build_juju_unit_status(pod_status)
-
-        # Assertions
-        assert type(juju_unit_status) == MaintenanceStatus
-        assert juju_unit_status.message == "Waiting for pod to appear"
-
-    def test_returns_maintenance_status_if_pod_is_not_running(self):
-        # Setup
-        status_dict = {
-            'metadata': {
-                'annotations': {
-                    'juju.io/unit': uuid4()
-                }
-            },
-            'status': {
-                'phase': 'Pending',
-                'conditions': [{
-                    'type': 'ContainersReady',
-                    'status': 'False'
-                }]
-            }
-        }
-        pod_status = PodStatus(status_dict=status_dict)
-
-        # Exercise
-        juju_unit_status = domain.build_juju_unit_status(pod_status)
-
-        # Assertions
-        assert type(juju_unit_status) == MaintenanceStatus
-        assert juju_unit_status.message == "Pod is starting"
-
-    def test_returns_maintenance_status_if_pod_is_not_ready(self):
-        # Setup
-        status_dict = {
-            'metadata': {
-                'annotations': {
-                    'juju.io/unit': uuid4()
-                }
-            },
-            'status': {
-                'phase': 'Running',
-                'conditions': [{
-                    'type': 'ContainersReady',
-                    'status': 'False'
-                }]
-            }
-        }
-        pod_status = PodStatus(status_dict=status_dict)
-
-        # Exercise
-        juju_unit_status = domain.build_juju_unit_status(pod_status)
-
-        # Assertions
-        assert type(juju_unit_status) == MaintenanceStatus
-        assert juju_unit_status.message == "Pod is getting ready"
-
-    def test_returns_active_status_if_pod_is_ready(self):
-        # Setup
-        status_dict = {
-            'metadata': {
-                'annotations': {
-                    'juju.io/unit': uuid4()
-                }
-            },
-            'status': {
-                'phase': 'Running',
-                'conditions': [{
-                    'type': 'ContainersReady',
-                    'status': 'True'
-                }]
-            }
-        }
-        pod_status = PodStatus(status_dict=status_dict)
-
-        # Exercise
-        juju_unit_status = domain.build_juju_unit_status(pod_status)
-
-        # Assertions
-        assert type(juju_unit_status) == ActiveStatus
 
 
 class ExternalMetricsParserTest(unittest.TestCase):

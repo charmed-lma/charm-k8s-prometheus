@@ -17,10 +17,11 @@ Quick Start
 
 ```
 git submodule update --init --recursive
-sudo snap install juju --classic
 sudo snap install microk8s --classic
+sudo snap install juju --classic
 sudo microk8s.enable dns dashboard registry storage metrics-server ingress
 sudo usermod -a -G microk8s $(whoami)
+sudo chown -f -R $USER ~/.kube
 ```
 
 Log out then log back in so that the new group membership is applied to
@@ -35,7 +36,8 @@ Optional: Grab coffee/beer/tea or do a 5k run. Once the above is done, do:
 ```
 juju create-storage-pool operator-storage kubernetes storage-class=microk8s-hostpath
 juju add-model lma
-juju deploy . --resource prometheus-image=prom/prometheus:v2.18.1
+juju deploy . --resource prometheus-image=prom/prometheus:v2.18.1 --resource nginx-image=nginx:1.19.0
+
 ```
 
 Wait until `juju status` shows that the prometheus app has a status of active.
@@ -77,7 +79,7 @@ Monitoring Kubernetes
 To monitor the kubernetes cluster, deploy it with the following config option:
 
     juju deploy . --resource prometheus-image=prom/prometheus:v2.18.1 \
-        --config monitor-k8s=true
+        --resource nginx-image=nginx:1.19.0 --config monitor-k8s=true
 
 If the charm has already been deployed, you may also configure it at runtime:
 
@@ -232,7 +234,7 @@ For example, given that you have already deployed an application named
 `config-changed` handler, execute the following:
 
 
-    kubectl exec -it pod/prometheus-operator-0 -n lma -- /bin/sh
+    kubectl exec -it pod/prometheus-operator-0 -n lma -- /bin/bash
 
 
 This will open an interactive shell within the operator pod. Then, install

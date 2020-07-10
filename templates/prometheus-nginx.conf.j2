@@ -1,0 +1,26 @@
+server {
+    listen 80;
+    server_name _;
+    access_log /var/log/nginx/prometheus-http.access.log main;
+    error_log /var/log/nginx/prometheus-http.error.log;
+    {%- if ssl_cert %}
+    return 301 https://$host$request_uri;
+    {%- else %}
+    location / {
+        proxy_pass http://localhost:{{ advertised_port }};
+    }
+    {%- endif %}
+}
+{%- if ssl_cert %}
+server {
+    server_name  _;
+    listen 443 ssl;
+    access_log  /var/log/nginx/prometheus-https.access.log main;
+    error_log /var/log/nginx/prometheus-https.error.log;
+    ssl_certificate /etc/nginx/ssl/prom-tls.pem;
+    ssl_certificate_key /etc/nginx/ssl/prom-tls.key;
+    location / {
+        proxy_pass http://localhost:{{ advertised_port }};
+    }
+}
+{%- endif %}

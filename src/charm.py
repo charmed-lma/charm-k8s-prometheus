@@ -102,10 +102,9 @@ class Charm(CharmBase):
 # coordinating domain models and services.
 
 def on_config_changed_handler(event, fw_adapter, state):
-    set_juju_pod_spec(fw_adapter)
-
-    wait_for_pod_readiness(fw_adapter)
-    ensure_config_is_reloaded(event, fw_adapter, state)
+    if set_juju_pod_spec(fw_adapter):
+        wait_for_pod_readiness(fw_adapter)
+        ensure_config_is_reloaded(event, fw_adapter, state)
 
 
 def on_new_alertmanager_relation_handler(event, fw_adapter):
@@ -175,7 +174,7 @@ def ensure_config_is_reloaded(event, fw_adapter, state):
         logger.debug("Config not yet propagated. Deferring.")
         # The rest of this event handler is deferred so that Juju can continue
         # with the config-change cycle, apply the new config to the ConfigMap
-        # and allow kubernetes to propogate that the the mounted volume in
+        # and allow kubernetes to propagate that the the mounted volume in
         # the Prometheus pod.
         event.defer()
         return
@@ -196,7 +195,9 @@ def set_juju_pod_spec(fw_adapter, alerting_config=None):
 
     if not fw_adapter.unit_is_leader():
         logging.debug("Unit is not a leader, skip pod spec configuration")
-        return
+        # Although PodSpec will not be altered, the pod provisioning process
+        # still have to continue
+        return True
 
     if alerting_config:
         logger.debug(
@@ -209,19 +210,20 @@ def set_juju_pod_spec(fw_adapter, alerting_config=None):
         juju_pod_spec = build_juju_pod_spec(
             app_name=fw_adapter.get_app_name(),
             charm_config=fw_adapter.get_config(),
-            image_meta=fw_adapter.get_image_meta('prometheus-image'),
+            prom_image_meta=fw_adapter.get_image_meta('prometheus-image'),
+            nginx_image_meta=fw_adapter.get_image_meta('nginx-image'),
             alerting_config=alerting_config
         )
+        pod_spec = juju_pod_spec.to_dict()
     except CharmError as e:
         fw_adapter.set_unit_status(
             BlockedStatus("Pod spec build failure: {0}".format(e))
         )
-        return
-
-    pod_spec = juju_pod_spec.to_dict()
+        return False
     logging.debug("Configuring pod: set PodSpec to: {0}".format(pod_spec))
     fw_adapter.set_pod_spec(pod_spec)
     fw_adapter.set_unit_status(MaintenanceStatus("Configuring pod"))
+    return True
 
 
 def wait_for_pod_readiness(fw_adapter):

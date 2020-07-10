@@ -5,11 +5,12 @@ import yaml
 import http.client
 import sys
 import time
+import random
 
 sys.path.append('lib')
 
 logger = logging.getLogger()
-
+from jinja2 import Environment, FileSystemLoader
 from exceptions import (
     CharmError, ExternalLabelParseError,
     TimeStringParseError, PrometheusAPIError
@@ -27,31 +28,37 @@ class PrometheusJujuPodSpec:
 
     def __init__(self,
                  app_name,
-                 image_path,
-                 repo_username,
-                 repo_password,
-                 advertised_port,
+                 prom_image_path,
+                 prom_repo_username,
+                 prom_repo_password,
+                 nginx_image_path,
+                 nginx_repo_username,
+                 nginx_repo_password,
                  prometheus_cli_args,
-                 prometheus_config):
+                 prometheus_config,
+                 nginx_config,
+                 enforce_pod_restart_workaround,
+                 ssl_cert,
+                 ssl_key):
 
+        self._enforce_pod_restart = enforce_pod_restart_workaround
+        self._ssl_cert = ssl_cert
+        self._ssl_key = ssl_key
         self._prometheus_config = prometheus_config
+        self._nginx_config = nginx_config
         self._spec = {
             'containers': [{
                 'name': app_name,
                 'imageDetails': {
-                    'imagePath': image_path,
-                    'username': repo_username,
-                    'password': repo_password
+                    'imagePath': prom_image_path,
+                    'username': prom_repo_username,
+                    'password': prom_repo_password
                 },
                 'args': prometheus_cli_args,
-                'ports': [{
-                    'containerPort': advertised_port,
-                    'protocol': 'TCP'
-                }],
                 'readinessProbe': {
                     'httpGet': {
                         'path': '/-/ready',
-                        'port': advertised_port
+                        'port': PROMETHEUS_ADVERTISED_PORT
                     },
                     'initialDelaySeconds': 10,
                     'timeoutSeconds': 30
@@ -59,25 +66,85 @@ class PrometheusJujuPodSpec:
                 'livenessProbe': {
                     'httpGet': {
                         'path': '/-/healthy',
-                        'port': advertised_port
+                        'port': PROMETHEUS_ADVERTISED_PORT
                     },
                     'initialDelaySeconds': 30,
                     'timeoutSeconds': 30
                 },
                 'files': [{
-                    'name': 'config',
+                    'name': 'prom-config',
                     'mountPath': '/etc/prometheus',
                     'files': {
                         'prometheus.yml': ''
                     }
                 }]
-            }]
+            }, {
+                'name': '{0}-nginx'.format(app_name),
+                'imageDetails': {
+                    'imagePath': nginx_image_path,
+                    'username': nginx_repo_username,
+                    'password': nginx_repo_password
+                },
+                'ports': [{
+                    'containerPort': 80,
+                    'name': 'nginx-http',
+                    'protocol': 'TCP'
+                }, {
+                    'containerPort': 443,
+                    'name': 'nginx-https',
+                    'protocol': 'TCP'
+                }],
+                'files': [{
+                    'name': 'nginx-config',
+                    'mountPath': '/etc/nginx/conf.d',
+                    'files': {
+                        'default.conf': ''
+                    }
+                }]
+            }
+            ]
         }
 
     def to_dict(self):
         final_dict = copy.deepcopy(self._spec)
         final_dict['containers'][0]['files'][0]['files']['prometheus.yml'] = \
             self._prometheus_config.yaml_dump()
+        final_dict['containers'][1]['files'][0]['files']['default.conf'] = \
+            self._nginx_config.render_config()
+
+        if (self._ssl_cert and not self._ssl_key) or \
+                (not self._ssl_cert and self._ssl_key):
+            raise CharmError(
+                'In order to use TLS endpoint, '
+                'both ssl_cert and ssl_key have to be configured'
+            )
+
+        if self._ssl_cert and self._ssl_key:
+            final_dict['containers'][1]['files'].append({
+                'name': 'prom-ssl',
+                'mountPath': '/etc/nginx/ssl',
+                'files': {
+                    'prom-tls.pem': self._ssl_cert,
+                    'prom-tls.key': self._ssl_key,
+                }
+            })
+
+        # (vgrevtsev) As for Jul 2020, there is no clear way to tell
+        # the NGINX to reload and/or restart itself. This is a workaround,
+        # which actually enforces the k8s to rebuild the pod, leading
+        # to the service restart.
+
+        if self._enforce_pod_restart:
+            def randomizer():
+                return str(hash(random.random()))[:4]
+            final_dict['containers'][1]['files'].append({
+                'name': 'rand-{0}'.format(randomizer()),
+                'mountPath': '/tmp',
+                'files': {
+                    randomizer(): randomizer()
+                }
+            })
+
         return final_dict
 
 
@@ -111,6 +178,21 @@ class PrometheusConfigFile:
 
     def __repr__(self):
         return str(self._config_dict)
+
+
+class NginxConfigFile:
+    def __init__(self, charm_config):
+        ctxt = {
+            'advertised_port': PROMETHEUS_ADVERTISED_PORT,
+            'ssl_cert': charm_config.get('ssl_cert', False),
+            'ssl_key': charm_config.get('ssl_key', False),
+        }
+        tenv = Environment(loader=FileSystemLoader('templates'))
+        template = tenv.get_template('prometheus-nginx.conf.j2')
+        self.rendered_config = template.render(ctxt)
+
+    def render_config(self):
+        return self.rendered_config
 
 
 # DOMAIN SERVICES
@@ -197,25 +279,33 @@ def build_prometheus_cli_args(charm_config):
     return prometheus_cli_args
 
 
-def build_juju_pod_spec(app_name,
-                        charm_config,
-                        image_meta,
-                        alerting_config=None):
+def build_juju_pod_spec(app_name, charm_config, prom_image_meta,
+                        nginx_image_meta, alerting_config=None):
 
     # Mutable defaults bug as described in https://bit.ly/3cF0k0w
     if not alerting_config:
         alerting_config = dict()
 
     prom_config = build_prometheus_config(charm_config)
+    nginx_config = NginxConfigFile(charm_config)
 
     spec = PrometheusJujuPodSpec(
         app_name=app_name,
-        image_path=image_meta.image_path,
-        repo_username=image_meta.repo_username,
-        repo_password=image_meta.repo_password,
-        advertised_port=PROMETHEUS_ADVERTISED_PORT,
+        prom_image_path=prom_image_meta.image_path,
+        prom_repo_username=prom_image_meta.repo_username,
+        prom_repo_password=prom_image_meta.repo_password,
+        nginx_image_path=nginx_image_meta.image_path,
+        nginx_repo_username=nginx_image_meta.repo_username,
+        nginx_repo_password=nginx_image_meta.repo_password,
         prometheus_cli_args=build_prometheus_cli_args(charm_config),
-        prometheus_config=prom_config)
+        prometheus_config=prom_config,
+        nginx_config=nginx_config,
+        enforce_pod_restart_workaround=charm_config.get(
+            'enforce-pod-restart', False
+        ),
+        ssl_cert=charm_config.get('ssl_cert'),
+        ssl_key=charm_config.get('ssl_key'),
+    )
 
     return spec
 
@@ -345,9 +435,7 @@ def _prometheus_http_api_call(
     if method not in ['GET', 'POST', 'PUT']:
         raise CharmError('Wrong HTTP method')
 
-    host = "{0}.{1}.svc:{2}".format(
-        app_name, model_name, PROMETHEUS_ADVERTISED_PORT
-    )
+    host = "{0}.{1}.svc".format(app_name, model_name)
     conn = http.client.HTTPConnection(host)
     conn.request(method=method, url=endpoint)
     logger.debug("Calling Prom API: {0} {1}".format(method, endpoint))

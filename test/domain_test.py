@@ -3,7 +3,7 @@ import sys
 import unittest
 from uuid import uuid4
 import yaml
-
+import textwrap
 sys.path.append('src')
 import domain
 from exceptions import (
@@ -128,9 +128,20 @@ class BuildJujuPodSpecTest(unittest.TestCase):
 
         # Exercise
         juju_pod_spec = domain.build_juju_pod_spec(
-            app_name=mock_app_name,
-            charm_config=mock_config,
-            image_meta=mock_image_meta)
+            app_name=mock_app_name, charm_config=mock_config,
+            prom_image_meta=mock_image_meta, nginx_image_meta=mock_image_meta
+        )
+
+        expected_nginx_config = textwrap.dedent("""\
+        server {
+            listen 80;
+            server_name _;
+            access_log /var/log/nginx/prometheus-http.access.log main;
+            error_log /var/log/nginx/prometheus-http.error.log;
+            location / {
+                proxy_pass http://localhost:9090;
+            }
+        }""")
 
         # Assertions
         assert isinstance(juju_pod_spec, domain.PrometheusJujuPodSpec)
@@ -142,10 +153,6 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                 'password': mock_image_meta.repo_password
             },
             'args': mock_args_config,
-            'ports': [{
-                'containerPort': 9090,
-                'protocol': 'TCP'
-            }],
             'readinessProbe': {
                 'httpGet': {
                     'path': '/-/ready',
@@ -163,7 +170,7 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                 'timeoutSeconds': 30
             },
             'files': [{
-                'name': 'config',
+                'name': 'prom-config',
                 'mountPath': '/etc/prometheus',
                 'files': {
                     'prometheus.yml': yaml.dump({
@@ -194,7 +201,31 @@ class BuildJujuPodSpecTest(unittest.TestCase):
                     })
                 }
             }]
-        }]})
+        }, {
+            'name': '{0}-nginx'.format(mock_app_name),
+            'imageDetails': {
+                'imagePath': mock_image_meta.image_path,
+                'username': mock_image_meta.repo_username,
+                'password': mock_image_meta.repo_password
+            },
+            'ports': [{
+                'containerPort': 80,
+                'name': 'nginx-http',
+                'protocol': 'TCP'
+            }, {
+                'containerPort': 443,
+                'name': 'nginx-https',
+                'protocol': 'TCP'
+            }],
+            'files': [{
+                'name': 'nginx-config',
+                'mountPath': '/etc/nginx/conf.d',
+                'files': {
+                    'default.conf': expected_nginx_config
+                }
+            }]
+        }
+        ]})
 
 
 class ExternalMetricsParserTest(unittest.TestCase):

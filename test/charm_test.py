@@ -166,13 +166,14 @@ class BuildJujuUnitStatusTest(unittest.TestCase):
 
 
 class OnConfigChangedHandlerTest(unittest.TestCase):
-
+    @patch('charm.set_juju_pod_spec', spec_set=True, autospec=True)
     @patch('charm.wait_for_pod_readiness', spec_set=True, autospec=True)
     @patch('charm.ensure_config_is_reloaded', spec_set=True, autospec=True)
     def test__it_pod_is_ready_and_config_is_updated(
         self,
         mock_ensure_config_is_reloaded,
-        mock_wait_for_pod_readiness_func
+        mock_wait_for_pod_readiness_func,
+        mock_set_juju_pod_spec
     ):
         # Setup
         mock_fw_adapter_cls = \
@@ -186,12 +187,17 @@ class OnConfigChangedHandlerTest(unittest.TestCase):
             create_autospec(charm.StoredState, spec_set=True)
         mock_state = mock_state_cls.return_value
 
-        # Exercise
+        mock_set_juju_pod_spec.return_value = False
+
         charm.on_config_changed_handler(mock_event, mock_fw, mock_state)
 
-        # Assert
-        assert mock_wait_for_pod_readiness_func.call_count == 1
+        assert mock_wait_for_pod_readiness_func.call_count == 0
+        assert mock_ensure_config_is_reloaded.call_count == 0
 
+        mock_set_juju_pod_spec.return_value = True
+        charm.on_config_changed_handler(mock_event, mock_fw, mock_state)
+
+        assert mock_wait_for_pod_readiness_func.call_count == 1
         assert mock_ensure_config_is_reloaded.call_count == 1
 
 
@@ -261,7 +267,8 @@ class OnNewAlertManagerRelationHandler(unittest.TestCase):
         assert mock_build_juju_pod_spec_func.call_args == \
             call(app_name=mock_fw.get_app_name.return_value,
                  charm_config=mock_fw.get_config.return_value,
-                 image_meta=mock_fw.get_image_meta.return_value,
+                 prom_image_meta=mock_fw.get_image_meta.return_value,
+                 nginx_image_meta=mock_fw.get_image_meta.return_value,
                  alerting_config=mock_data)
 
         assert mock_fw.set_pod_spec.call_count == 1
@@ -304,7 +311,8 @@ class OnStartHandlerTest(unittest.TestCase):
         assert mock_build_juju_pod_spec_func.call_args == \
             call(app_name=mock_fw.get_app_name.return_value,
                  charm_config=mock_fw.get_config.return_value,
-                 image_meta=mock_fw.get_image_meta.return_value,
+                 prom_image_meta=mock_fw.get_image_meta.return_value,
+                 nginx_image_meta=mock_fw.get_image_meta.return_value,
                  alerting_config={})
 
         assert mock_fw.set_pod_spec.call_count == 1
